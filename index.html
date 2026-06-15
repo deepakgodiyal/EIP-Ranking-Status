@@ -87,7 +87,15 @@ body[data-role="viewer"] .editbtn{display:none}
 body[data-role="viewer"] .delbtn,body[data-role="viewer"] .needEdit{display:none}
 .iconbtn.delbtn:hover{color:var(--red)}
 .rstbtn{border:1px solid #cdd6e4;background:#fff;border-radius:7px;padding:5px 12px;cursor:pointer;font-weight:600;color:var(--green)}
-#delModal{position:fixed;inset:0;background:rgba(16,42,76,.5);z-index:1100;display:none;align-items:center;justify-content:center}
+#delModal,#editModal{position:fixed;inset:0;background:rgba(16,42,76,.5);z-index:1100;display:none;align-items:center;justify-content:center}
+.editgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.editgrid label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--gray);font-weight:600}
+.editgrid select,.editgrid input{padding:8px;border:1px solid #cdd6e4;border-radius:7px;font-size:13px;color:#1c2533}
+.editranks{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-bottom:12px}
+.editranks .erw{display:flex;flex-direction:column;gap:3px}
+.editranks .erw label{font-size:10.5px;color:var(--gray);font-weight:700}
+.editranks input{padding:6px;border:1px solid #cdd6e4;border-radius:6px;font-size:13px;text-align:center}
+.iconbtn.editvalbtn:hover{color:var(--blue)}
 .scrollbtns{position:fixed;right:18px;bottom:22px;display:flex;flex-direction:column;gap:9px;z-index:200}
 .scrollbtns button{width:44px;height:44px;border-radius:50%;border:none;background:var(--navy);color:#fff;font-size:19px;cursor:pointer;box-shadow:0 4px 14px rgba(15,39,72,.32);display:flex;align-items:center;justify-content:center}
 .scrollbtns button:hover{background:#1b3a63}
@@ -168,6 +176,19 @@ h4.sec{font-size:13px;color:var(--navy);margin:4px 0 8px}
   <div class="authbtns"><button id="authSignin" class="bsave">Sign in</button><button id="authSignup" class="bcancel">Create account</button></div>
 </div></div>
 <div id="authBar"><span id="authWho"></span><button id="delBtn" class="needEdit" style="display:none">Deleted</button><button id="authUsersBtn" style="display:none">Users</button><button id="authLogout">Logout</button></div>
+<div id="editModal"><div class="umcard" style="width:620px">
+  <div class="umhead"><b id="editTitle"></b> <button id="editClose">&times;</button></div>
+  <div id="editMeta" class="umdesc"></div>
+  <div class="editgrid">
+    <label>Keyword name <input type="text" id="edName"></label>
+    <label>Owner <select id="edOwner"></select></label>
+    <label>Searches / month <input type="number" id="edSearches"></label>
+    <label>Ranking URL <input type="text" id="edUrl"></label>
+  </div>
+  <div class="umdesc" style="margin-bottom:4px">Rank on each date (number, "-" = not in top 30, blank = not tracked):</div>
+  <div class="editranks" id="edRanks"></div>
+  <div class="prow"><button class="bcancel" id="editCancel">Cancel</button> <button class="bsave" id="editSave">Save changes</button></div>
+</div></div>
 <div id="delModal"><div class="umcard"><div class="umhead"><b>Deleted keywords</b> <button id="delClose">&times;</button></div><div class="umdesc">These are hidden from the dashboard. Click Restore to bring one back.</div><table id="delTable"></table></div></div>
 <div id="usersModal"><div class="umcard">
   <div class="umhead"><b>User Access</b> <button id="umClose">&times;</button></div>
@@ -367,6 +388,7 @@ D.kw.forEach((k,i)=>k._i=i);
 const ann = {};                                  // kw -> {name, comment}
 // ===== Phase 2: data overrides (edit / delete), shared via Supabase =====
 const KW2I={}; D.kw.forEach((k,i)=>KW2I[k.kw]=i);
+const ORIG={}; D.kw.forEach(k=>{ORIG[k.kw]={grp:k.grp,searches:k.searches,url:k.url,r:k.r.slice()};});
 const ALLGROUPS=Object.keys(D.groups);
 const GISPERSON={}; ALLGROUPS.forEach(g=>GISPERSON[g]=D.groups[g].isPerson);
 const OVR={}; const OVRMETA={};
@@ -381,7 +403,7 @@ function recomputeGroups(){
   return G2;
 }
 function applyOverrides(){
-  D.kw.forEach(rec=>{rec._del=false;});
+  D.kw.forEach(rec=>{const o=ORIG[rec.kw]; if(o){rec.grp=o.grp;rec.searches=o.searches;rec.url=o.url;rec.r=o.r.slice();} rec._del=false;});
   for(const kw in OVR){const rec=D.kw[KW2I[kw]]; if(!rec)continue; const o=OVR[kw];
     if(o.deleted==='1')rec._del=true;
     if('owner' in o && o.owner)rec.grp=o.owner;
@@ -700,7 +722,7 @@ function rowHTML(k){
   const enqc=`<td class="num cEnq">${ev>0?ev:'<span class="muted">0</span>'}</td>`;
   const dcells=k.r.map((v,i)=>cellRank(v,i===0?'c4':'')).join('');
   const cmt=hasComment(k);
-  const kwc=`<div class="kwcell"><span class="kwtext">${escH(dispName(k))}</span><span class="kwicons"><button class="iconbtn editbtn" data-i="${k._i}" title="Edit keyword">&#9998;</button><button class="iconbtn cmtbtn ${cmt?'active':''}" data-i="${k._i}" title="${cmt?'View / edit comment':'Add comment'}">&#128172;</button><button class="iconbtn delbtn needEdit" data-i="${k._i}" title="Delete keyword">&#128465;</button></span></div>`;
+  const kwc=`<div class="kwcell"><span class="kwtext">${escH(dispName(k))}</span><span class="kwicons"><button class="iconbtn cmtbtn ${cmt?'active':''}" data-i="${k._i}" title="${cmt?'View / edit comment':'Add comment'}">&#128172;</button><button class="iconbtn editvalbtn needEdit" data-i="${k._i}" title="Edit keyword data">&#9998;</button><button class="iconbtn delbtn needEdit" data-i="${k._i}" title="Delete keyword">&#128465;</button></span></div>`;
   return `<tr class="${cmt?'has-comment':''}"><td class="c0">${kwc}</td><td class="c1">${k.grp}${tag}</td>${srch}${url}${enqc}${dcells}`+chgCell(k)+'</tr>';
 }
 function appendRows(n){
@@ -881,9 +903,8 @@ const kwTableEl=document.getElementById('kwTable');
 kwTableEl.addEventListener('click',e=>{
   const th=e.target.closest('th.sortable'); if(th){const key=th.dataset.sort; if(hdrSort&&hdrSort.key===key)hdrSort.dir*=-1; else hdrSort={key,dir:1}; document.getElementById('sortBy').value=''; renderKw(true); return;}
   const db=e.target.closest('.delbtn'); if(db){deleteKw(+db.dataset.i);return;}
-  const eb=e.target.closest('.editbtn'); if(eb){const sp=eb.closest('.kwcell').querySelector('.kwtext');startEdit(+eb.dataset.i,sp);return;}
+  const ev=e.target.closest('.editvalbtn'); if(ev){openEdit(+ev.dataset.i);return;}
   const cb=e.target.closest('.cmtbtn'); if(cb){openCmt(+cb.dataset.i,cb);return;}
-  const tx=e.target.closest('.kwtext'); if(tx){const btn=tx.closest('.kwcell').querySelector('.editbtn');startEdit(+btn.dataset.i,tx);return;}
 });
 kwTableEl.addEventListener('mouseover',e=>{
   const cb=e.target.closest('.cmtbtn.active'); if(!cb)return;
@@ -894,6 +915,42 @@ kwTableEl.addEventListener('mouseover',e=>{
   cmtTip.style.top=(r.bottom+6)+'px';
 });
 kwTableEl.addEventListener('mouseout',e=>{if(e.target.closest('.cmtbtn'))cmtTip.style.display='none';});
+// ===== Phase 2b: per-keyword value editor =====
+let edI=null;
+function rankStr(v){return (typeof v==='number')?String(v):(v==='-'?'-':'');}
+function openEdit(i){
+  if(!canEdit())return; edI=i; const k=D.kw[i];
+  document.getElementById('editTitle').textContent=k.kw;
+  document.getElementById('edName').value=dispName(k);
+  document.getElementById('edOwner').innerHTML=ALLGROUPS.map(g=>`<option${g===k.grp?' selected':''}>${escH(g)}</option>`).join('');
+  document.getElementById('edSearches').value=(k.searches==null?'':k.searches);
+  document.getElementById('edUrl').value=k.url||'';
+  document.getElementById('edRanks').innerHTML=D.dates.map((d,di)=>`<div class="erw"><label>${d}</label><input data-d="${di}" value="${rankStr(k.r[di])}"></div>`).join('');
+  const meta=OVRMETA[k.kw]||{}; let latest=null;
+  for(const f in meta){if(meta[f].at && (!latest||meta[f].at>latest.at))latest={by:meta[f].by,at:meta[f].at};}
+  document.getElementById('editMeta').innerHTML = latest?('Last edited by <b>'+escH(latest.by||'?')+'</b> on '+fmtWhen(latest.at)):'No edits yet — values are from the uploaded sheet.';
+  document.getElementById('editModal').style.display='flex';
+}
+async function setOrClear(kw,field,newVal,origVal){
+  if(String(newVal)!==String(origVal)){ await ovrSet(kw,field,newVal); }
+  else if(OVR[kw]&&(field in OVR[kw])){ await ovrDel(kw,field); }
+}
+async function saveEdit(){
+  if(edI==null)return; const k=D.kw[edI]; const kw=k.kw; const o=ORIG[kw];
+  const newName=document.getElementById('edName').value.trim();
+  ann[kw]=ann[kw]||{}; const wantName=(newName&&newName!==kw)?newName:'';
+  if((ann[kw].name||'')!==wantName){ann[kw].name=wantName;await annSave(kw);}
+  await setOrClear(kw,'owner',document.getElementById('edOwner').value,o.grp);
+  await setOrClear(kw,'searches',document.getElementById('edSearches').value.trim(),(o.searches==null?'':String(o.searches)));
+  await setOrClear(kw,'url',document.getElementById('edUrl').value.trim(),(o.url||''));
+  const inps=document.getElementById('edRanks').querySelectorAll('input');
+  for(const inp of inps){const di=+inp.dataset.d; await setOrClear(kw,'rank:'+D.dates[di], inp.value.trim(), rankStr(o.r[di]));}
+  applyOverrides(); G=recomputeGroups(); renderSummary(); renderBands(); renderKw(false);
+  document.getElementById('editModal').style.display='none'; edI=null;
+}
+document.getElementById('editClose').onclick=()=>document.getElementById('editModal').style.display='none';
+document.getElementById('editCancel').onclick=()=>document.getElementById('editModal').style.display='none';
+document.getElementById('editSave').onclick=saveEdit;
 
 // ============ init annotations + sync ============
 async function initAnnotations(){
