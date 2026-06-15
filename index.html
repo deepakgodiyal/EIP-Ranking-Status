@@ -88,6 +88,7 @@ footer{text-align:center;color:var(--gray);font-size:11.5px;margin:18px 0}
 .umdesc{font-size:12px;color:var(--gray);margin-bottom:12px}
 #usersTable .rolesel{padding:5px 8px;border-radius:7px;border:1px solid #cdd6e4}
 body[data-role="viewer"] .editbtn{display:none}
+body[data-role="public"] .editvalbtn,body[data-role="public"] .delbtn,body[data-role="public"] .cmtbtn,body[data-role="public"] #authBar,body[data-role="public"] .needEdit,body[data-role="public"] .kwicons{display:none}
 body[data-role="viewer"] .delbtn,body[data-role="viewer"] .needEdit{display:none}
 .iconbtn.delbtn:hover{color:var(--red)}
 .rstbtn{border:1px solid #cdd6e4;background:#fff;border-radius:7px;padding:5px 12px;cursor:pointer;font-weight:600;color:var(--green)}
@@ -394,6 +395,7 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const sb = (window.supabase&&window.supabase.createClient)?window.supabase.createClient(SB_URL,SB_KEY):null;
 const SHARED = !!sb;
 let USER=null, ROLE='viewer';
+const PUBLIC=true;  // index.html = public view-only site
 function canEdit(){return SHARED ? (ROLE==='admin'||ROLE==='editor') : true;}
 D.kw.forEach((k,i)=>k._i=i);
 const ann = {};                                  // kw -> {name, comment}
@@ -1258,6 +1260,7 @@ async function openUsers(){
 }
 async function authInit(){
   const badge=document.getElementById('syncBadge');
+  if(PUBLIC){ document.body.dataset.role='public'; if(badge){badge.textContent='Live';badge.className='syncbadge sync-shared';} const ok=await loadFromDB(); if(!ok){G=recomputeGroups();} renderSummary(); renderBands(); renderKw(true); return; }
   wireAuthUI();
   if(!sb){ if(badge){badge.textContent='Local';badge.className='syncbadge sync-local';} document.body.dataset.role='admin'; await annLoad(); renderKw(true); return; }
   if(badge){badge.textContent='Shared';badge.className='syncbadge sync-shared';}

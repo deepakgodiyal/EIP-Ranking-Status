@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EMR Ranking — Admin Panel</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{color-scheme:light;--navy:#102a4c;--accent:#2f7de1;--bg:#f4f6fa;--card:#fff;--green:#15915b;--red:#d24343;--gray:#7a869a;--line:#e7ebf2;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI",system-ui,Arial,sans-serif;background:var(--bg);color:#1c2533;font-size:14px}
+/* login */
+#login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(120deg,#0f2748,#1b3a63)}
+.lcard{background:#fff;border-radius:14px;padding:30px 32px;width:370px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.lcard h1{font-size:19px;color:var(--navy);margin-bottom:3px}
+.lcard p{font-size:12.5px;color:var(--gray);margin-bottom:18px}
+.lcard input{width:100%;padding:11px 12px;border:1px solid #cdd6e4;border-radius:9px;margin-bottom:11px;font-size:14px}
+.lcard button{width:100%;padding:11px;border:none;border-radius:9px;background:var(--navy);color:#fff;font-weight:700;cursor:pointer;font-size:14px}
+.lerr{color:var(--red);font-size:12.5px;min-height:16px;margin-bottom:6px}
+/* app */
+#app{display:none}
+header.top{background:var(--navy);color:#fff;display:flex;justify-content:space-between;align-items:center;padding:13px 22px}
+header.top .brand{font-weight:800;letter-spacing:.5px}
+header.top .right{display:flex;align-items:center;gap:12px;font-size:12.5px}
+header.top a.view{color:#bcd2f0;text-decoration:none}
+header.top button{border:none;border-radius:16px;padding:6px 13px;cursor:pointer;font-weight:600;font-size:12px;background:#fbeaea;color:var(--red)}
+.rolebadge{padding:2px 9px;border-radius:12px;font-weight:700;font-size:11px;background:#2f7de1;color:#fff;text-transform:capitalize}
+nav.tabs{display:flex;gap:4px;background:#fff;padding:0 18px;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+nav.tabs button{border:none;background:none;padding:14px 18px;cursor:pointer;font-weight:600;font-size:13.5px;color:var(--gray);border-bottom:3px solid transparent}
+nav.tabs button.active{color:var(--navy);border-bottom-color:var(--accent)}
+.wrap{max-width:1150px;margin:0 auto;padding:20px}
+.sec{display:none}.sec.active{display:block}
+.card{background:#fff;border-radius:12px;padding:18px;box-shadow:0 2px 8px rgba(20,40,80,.06);margin-bottom:16px}
+.card h2{font-size:16px;color:var(--navy);margin-bottom:3px}
+.card .desc{font-size:12.5px;color:var(--gray);margin-bottom:14px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+input[type=text],input[type=number],input[type=date],select{padding:8px 11px;border:1px solid #cdd6e4;border-radius:8px;font-size:13px}
+input.search{min-width:280px}
+.btn{border:none;border-radius:8px;padding:9px 16px;cursor:pointer;font-weight:700;font-size:13px}
+.btn.primary{background:var(--navy);color:#fff}.btn.green{background:var(--green);color:#fff}.btn.ghost{background:#eef2f7;color:var(--navy)}
+.btn.sm{padding:6px 11px;font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--gray);font-size:11px;text-transform:uppercase;letter-spacing:.5px;cursor:pointer}
+th.num,td.num{text-align:right;font-variant-numeric:tabular-nums}
+tr:hover td{background:#f7f9fc}
+.muted{color:var(--gray)}
+.act{display:flex;gap:6px}
+.iconbtn{border:1px solid var(--line);background:#fff;border-radius:7px;padding:5px 9px;cursor:pointer;font-size:12px}
+.iconbtn.del{color:var(--red);border-color:#f3d2d2}
+.pager{display:flex;gap:10px;align-items:center;margin-top:12px;font-size:12.5px;color:var(--gray)}
+.pager button{border:1px solid var(--line);background:#fff;border-radius:7px;padding:5px 12px;cursor:pointer}
+.modal{position:fixed;inset:0;background:rgba(16,42,76,.5);z-index:100;display:none;align-items:center;justify-content:center}
+.modal.open{display:flex}
+.mcard{background:#fff;border-radius:13px;padding:22px;width:640px;max-width:94vw;max-height:88vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.mhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.mhead h3{font-size:16px;color:var(--navy)}
+.mhead button{border:none;background:none;font-size:20px;cursor:pointer;color:var(--gray)}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+.fgrid label,.ffull label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--gray);font-weight:600}
+.full{margin-bottom:12px}.full label input{width:100%}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-bottom:12px}
+.rgrid .erw{display:flex;flex-direction:column;gap:3px}.rgrid label{font-size:10.5px;color:var(--gray);font-weight:700}
+.rgrid input{padding:6px;border:1px solid #cdd6e4;border-radius:6px;text-align:center}
+.mrow{display:flex;justify-content:flex-end;gap:10px;margin-top:8px}
+.note{font-size:12.5px;color:#475066;background:#eef4fc;border-radius:8px;padding:10px 12px;margin-bottom:12px}
+.statline{font-size:13px;color:#475066;margin:10px 0}
+.kpi{display:inline-block;background:#eef2f7;border-radius:9px;padding:8px 14px;margin-right:10px;font-size:13px}
+.kpi b{color:var(--navy);font-size:17px}
+.noaccess{max-width:420px;margin:80px auto;text-align:center;color:var(--gray)}
+</style></head>
+<body>
+
+<div id="login"><div class="lcard">
+  <h1>EMR Ranking — Admin</h1>
+  <p>Sign in to manage the dashboard</p>
+  <input type="email" id="email" placeholder="Email" autocomplete="username">
+  <input type="password" id="pass" placeholder="Password" autocomplete="current-password">
+  <div class="lerr" id="lerr"></div>
+  <button id="signin">Sign in</button>
+</div></div>
+
+<div id="app">
+  <header class="top">
+    <div class="brand">EMR RANKING · ADMIN</div>
+    <div class="right"><a class="view" href="index.html" target="_blank">View site &#8599;</a><span id="who"></span><button id="logout">Logout</button></div>
+  </header>
+  <nav class="tabs">
+    <button data-t="keywords" class="active">Keywords</button>
+    <button data-t="upload">Upload</button>
+    <button data-t="users">Users</button>
+    <button data-t="activity">Activity</button>
+    <button data-t="settings">Settings</button>
+  </nav>
+  <div class="wrap">
+    <div class="sec active" id="sec-keywords">
+      <div class="card">
+        <h2>Keywords</h2>
+        <div class="desc">Add, edit or delete any keyword. Changes go live on the public site immediately.</div>
+        <div class="toolbar">
+          <input type="text" class="search" id="kwSearch" placeholder="Search keyword or owner...">
+          <select id="kwOwner"><option value="">All owners</option></select>
+          <select id="kwShow"><option value="active">Active only</option><option value="deleted">Deleted only</option><option value="all">All</option></select>
+          <button class="btn green" id="kwAdd">+ Add keyword</button>
+          <span class="muted" id="kwCount"></span>
+        </div>
+        <div style="overflow-x:auto"><table id="kwTable"></table></div>
+        <div class="pager"><button id="kwPrev">&larr; Prev</button><span id="kwPage"></span><button id="kwNext">Next &rarr;</button></div>
+      </div>
+    </div>
+
+    <div class="sec" id="sec-upload">
+      <div class="card">
+        <h2>Upload ranking sheet (date-wise)</h2>
+        <div class="desc">Upload a new date's EMR ranking export. It adds the new date column, updates ranks/searches/URLs, and adds any new keywords — all into the live database.</div>
+        <div class="note">Expected columns: <b>Keyword, # of Searches, Rank, URL Found, Tags</b> (the standard EMR export). "Not in top 30" is treated as not ranked.</div>
+        <div class="toolbar">
+          <label class="muted" style="font-size:12.5px">Date label &nbsp;<input type="text" id="upDate" placeholder="e.g. 18 Jun" style="width:130px"></label>
+          <input type="file" id="upFile" accept=".xlsx,.xls">
+          <button class="btn primary" id="upAnalyze">Analyze</button>
+        </div>
+        <div id="upResult"></div>
+      </div>
+      <div class="card">
+        <h2>Upload enquiries sheet</h2>
+        <div class="desc muted">Coming in the next update — enquiries will move to the database too.</div>
+      </div>
+    </div>
+
+    <div class="sec" id="sec-users">
+      <div class="card">
+        <h2>User access</h2>
+        <div class="desc">People sign up on the admin login as Viewer; promote them here. (To fully remove a login, use Supabase &rarr; Authentication.)</div>
+        <table id="usersTable"></table>
+      </div>
+    </div>
+
+    <div class="sec" id="sec-activity">
+      <div class="card">
+        <h2>Activity log</h2>
+        <div class="desc">Who changed what, and when (latest first).</div>
+        <table id="actTable"></table>
+      </div>
+    </div>
+
+    <div class="sec" id="sec-settings">
+      <div class="card">
+        <h2>Settings</h2>
+        <div class="statline" id="setStats"></div>
+        <div class="desc">Tracked dates (from the database):</div>
+        <div id="setDates"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="kwModal"><div class="mcard">
+  <div class="mhead"><h3 id="kwmTitle">Edit keyword</h3><button id="kwmClose">&times;</button></div>
+  <div id="kwmMeta" class="muted" style="font-size:12px;margin-bottom:6px"></div>
+  <div class="full"><label>Keyword (unique id) <input type="text" id="f_kw"></label></div>
+  <div class="fgrid">
+    <label>Display name (blank = same as keyword) <input type="text" id="f_name"></label>
+    <label>Owner <select id="f_owner"></select></label>
+    <label>Searches / month <input type="number" id="f_searches"></label>
+    <label>Ranking URL <input type="text" id="f_url"></label>
+  </div>
+  <div class="muted" style="font-size:12px;margin-bottom:4px">Rank on each date (number, "-" = not in top 30, blank = not tracked):</div>
+  <div class="rgrid" id="f_ranks"></div>
+  <div class="mrow"><button class="btn ghost" id="kwmCancel">Cancel</button><button class="btn primary" id="kwmSave">Save</button></div>
+</div></div>
+
+<script>
+const SB_URL='https://jmsjgaocqwkffsyjekcx.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc2pnYW9jcXdrZmZzeWpla2N4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0Nzg3MDEsImV4cCI6MjA5NzA1NDcwMX0.g7UXaW648xzecbgLQVa5i_7IZaorfcaDzz2-2Rp5euY';
+const sb=window.supabase.createClient(SB_URL,SB_KEY);
+let USER=null, ROLE='viewer', KW=[], DATES=[], OWNERS=[];
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function joinRanks(r){return r.map(v=>v==null?'':(v===''?'':v)).join(',');}
+function parseRanks(s,n){const a=String(s||'').split(',').map(x=>{x=x.trim();return x;}); while(a.length<n)a.push(''); return a.slice(0,n);}
+async function logAct(action,detail){try{await sb.from('activity').insert({who:USER&&USER.email,action,detail});}catch(e){}}
+
+// ---------- auth ----------
+async function boot(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(session&&session.user){await afterLogin(session.user);}
+  sb.auth.onAuthStateChange((_e,s)=>{ if(s&&s.user)afterLogin(s.user); else location.reload(); });
+}
+document.getElementById('signin').onclick=async()=>{
+  const e=document.getElementById('lerr');e.textContent='';
+  const {error}=await sb.auth.signInWithPassword({email:document.getElementById('email').value.trim(),password:document.getElementById('pass').value});
+  if(error)e.textContent=error.message;
+};
+document.getElementById('pass').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('signin').click();});
+document.getElementById('logout').onclick=async()=>{await sb.auth.signOut();location.reload();};
+async function afterLogin(user){
+  USER=user;
+  try{const {data}=await sb.from('profiles').select('role').eq('id',user.id).single();ROLE=(data&&data.role)||'viewer';}catch(e){ROLE='viewer';}
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('who').innerHTML=esc(user.email)+' <span class="rolebadge">'+ROLE+'</span>';
+  if(ROLE==='viewer'){ document.querySelector('.wrap').innerHTML='<div class="noaccess"><h2>No edit access</h2><p>Your account is a Viewer. Ask an Admin to give you Editor or Admin access.</p></div>'; document.querySelector('nav.tabs').style.display='none'; return; }
+  await loadAll();
+}
+
+// ---------- load data ----------
+async function loadAll(){
+  // dates
+  try{const {data}=await sb.from('meta').select('value').eq('key','dates').single(); DATES=(data&&data.value)||[];}catch(e){DATES=[];}
+  // keywords (paginated)
+  KW=[]; let from=0,page=1000;
+  while(true){ const {data,error}=await sb.from('keywords').select('kw,name,owner,searches,url,ranks,deleted,updated_by,updated_at').range(from,from+page-1);
+    if(error){alert('Load failed: '+error.message);break;} KW=KW.concat(data||[]); if(!data||data.length<page)break; from+=page; if(from>60000)break; }
+  OWNERS=[...new Set(KW.map(k=>k.owner).filter(Boolean))].sort();
+  const os=document.getElementById('kwOwner'); os.innerHTML='<option value="">All owners</option>'+OWNERS.map(o=>`<option>${esc(o)}</option>`).join('');
+  const fo=document.getElementById('f_owner'); fo.innerHTML=OWNERS.map(o=>`<option>${esc(o)}</option>`).join('');
+  kwPage=0; renderKw();
+  renderSettings();
+}
+
+// ---------- Keywords table ----------
+let kwPage=0; const PER=50;
+function kwFiltered(){
+  const q=document.getElementById('kwSearch').value.toLowerCase();
+  const ow=document.getElementById('kwOwner').value;
+  const show=document.getElementById('kwShow').value;
+  return KW.filter(k=>{
+    if(show==='active'&&k.deleted)return false;
+    if(show==='deleted'&&!k.deleted)return false;
+    if(ow&&k.owner!==ow)return false;
+    if(q&&!(k.kw||'').toLowerCase().includes(q)&&!((k.name||'').toLowerCase().includes(q)))return false;
+    return true;
+  });
+}
+function renderKw(){
+  const rows=kwFiltered(); const pages=Math.max(1,Math.ceil(rows.length/PER));
+  if(kwPage>=pages)kwPage=0;
+  const slice=rows.slice(kwPage*PER,kwPage*PER+PER);
+  let h='<tr><th>Keyword</th><th>Owner</th><th class="num">Searches</th><th>Latest rank</th><th></th></tr>';
+  const li=DATES.length-1;
+  slice.forEach(k=>{const r=parseRanks(k.ranks,DATES.length); const lr=r[li]; const name=k.name||k.kw;
+    h+=`<tr${k.deleted?' style="opacity:.5"':''}><td>${esc(name)}${k.deleted?' <span class="muted">(deleted)</span>':''}</td><td>${esc(k.owner)}</td><td class="num">${k.searches==null?'':Number(k.searches).toLocaleString()}</td><td>${lr===''||lr==null?'<span class="muted">-</span>':esc(lr)}</td>
+      <td class="num act">${k.deleted?`<button class="iconbtn" data-rst="${esc(k.kw)}">Restore</button>`:`<button class="iconbtn" data-edit="${esc(k.kw)}">Edit</button><button class="iconbtn del" data-del="${esc(k.kw)}">Delete</button>`}</td></tr>`;});
+  const t=document.getElementById('kwTable'); t.innerHTML=h;
+  document.getElementById('kwCount').textContent=rows.length.toLocaleString()+' keywords';
+  document.getElementById('kwPage').textContent='Page '+(kwPage+1)+' of '+pages;
+  t.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openKw(b.dataset.edit));
+  t.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>delKw(b.dataset.del));
+  t.querySelectorAll('[data-rst]').forEach(b=>b.onclick=()=>rstKw(b.dataset.rst));
+}
+['kwSearch','kwOwner','kwShow'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{kwPage=0;renderKw();}));
+document.getElementById('kwPrev').onclick=()=>{if(kwPage>0){kwPage--;renderKw();}};
+document.getElementById('kwNext').onclick=()=>{kwPage++;renderKw();};
+
+// ---------- Keyword edit/add modal ----------
+let editKey=null;
+function openModal(){document.getElementById('kwModal').classList.add('open');}
+function closeModal(){document.getElementById('kwModal').classList.remove('open');}
+function fillRanks(r){document.getElementById('f_ranks').innerHTML=DATES.map((d,i)=>`<div class="erw"><label>${esc(d)}</label><input data-d="${i}" value="${esc((r&&r[i])||'')}"></div>`).join('');}
+function openKw(kw){
+  const k=KW.find(x=>x.kw===kw); if(!k)return; editKey=kw;
+  document.getElementById('kwmTitle').textContent='Edit keyword';
+  document.getElementById('kwmMeta').textContent=k.updated_by?('Last edited by '+k.updated_by+(k.updated_at?(' · '+new Date(k.updated_at).toLocaleString()):'')):'';
+  document.getElementById('f_kw').value=k.kw; document.getElementById('f_kw').disabled=true;
+  document.getElementById('f_name').value=k.name||'';
+  document.getElementById('f_owner').value=k.owner||'';
+  document.getElementById('f_searches').value=k.searches==null?'':k.searches;
+  document.getElementById('f_url').value=k.url||'';
+  fillRanks(parseRanks(k.ranks,DATES.length));
+  openModal();
+}
+document.getElementById('kwAdd').onclick=()=>{
+  editKey=null; document.getElementById('kwmTitle').textContent='Add keyword'; document.getElementById('kwmMeta').textContent='';
+  document.getElementById('f_kw').value=''; document.getElementById('f_kw').disabled=false;
+  document.getElementById('f_name').value=''; document.getElementById('f_owner').value=OWNERS[0]||'';
+  document.getElementById('f_searches').value=''; document.getElementById('f_url').value='';
+  fillRanks(DATES.map(()=>'')); openModal();
+};
+document.getElementById('kwmClose').onclick=closeModal;
+document.getElementById('kwmCancel').onclick=closeModal;
+document.getElementById('kwmSave').onclick=async()=>{
+  const kw=document.getElementById('f_kw').value.trim(); if(!kw){alert('Keyword required');return;}
+  const ranks=[...document.querySelectorAll('#f_ranks input')].sort((a,b)=>a.dataset.d-b.dataset.d).map(i=>i.value.trim());
+  const row={kw,name:document.getElementById('f_name').value.trim()||null,owner:document.getElementById('f_owner').value||null,
+    searches:(document.getElementById('f_searches').value.trim()===''?null:Number(document.getElementById('f_searches').value)),
+    url:document.getElementById('f_url').value.trim()||null, ranks:ranks.join(','), deleted:false,
+    updated_by:USER.email, updated_at:new Date().toISOString()};
+  const {error}=await sb.from('keywords').upsert(row); if(error){alert('Save failed: '+error.message);return;}
+  await logAct(editKey?'edit':'add','keyword: '+kw);
+  const ix=KW.findIndex(x=>x.kw===kw); if(ix>=0)KW[ix]=row; else KW.push(row);
+  if(row.owner&&!OWNERS.includes(row.owner)){OWNERS.push(row.owner);OWNERS.sort();}
+  closeModal(); renderKw();
+};
+async function delKw(kw){ if(!confirm('Delete "'+kw+'"? It will be hidden from the public site (you can Restore it).'))return;
+  const {error}=await sb.from('keywords').update({deleted:true,updated_by:USER.email,updated_at:new Date().toISOString()}).eq('kw',kw);
+  if(error){alert(error.message);return;} const k=KW.find(x=>x.kw===kw); if(k){k.deleted=true;k.updated_by=USER.email;k.updated_at=new Date().toISOString();}
+  await logAct('delete','keyword: '+kw); renderKw();
+}
+async function rstKw(kw){ const {error}=await sb.from('keywords').update({deleted:false}).eq('kw',kw); if(error){alert(error.message);return;}
+  const k=KW.find(x=>x.kw===kw); if(k)k.deleted=false; await logAct('restore','keyword: '+kw); renderKw();
+}
+
+// ---------- Users ----------
+async function loadUsers(){
+  const t=document.getElementById('usersTable'); t.innerHTML='<tr><td>Loading...</td></tr>';
+  const {data,error}=await sb.from('profiles').select('id,email,role').order('email');
+  if(error){t.innerHTML='<tr><td>'+esc(error.message)+'</td></tr>';return;}
+  let h='<tr><th>Email</th><th>Role</th></tr>';
+  (data||[]).forEach(u=>{h+=`<tr><td>${esc(u.email||u.id)}</td><td><select data-id="${u.id}" ${ROLE==='admin'?'':'disabled'}>
+    <option value="viewer"${u.role==='viewer'?' selected':''}>Viewer</option><option value="editor"${u.role==='editor'?' selected':''}>Editor</option><option value="admin"${u.role==='admin'?' selected':''}>Admin</option></select></td></tr>`;});
+  t.innerHTML=h;
+  t.querySelectorAll('select[data-id]').forEach(s=>s.onchange=async()=>{const {error}=await sb.from('profiles').update({role:s.value}).eq('id',s.dataset.id);if(error)alert(error.message);else logAct('role','set '+s.dataset.id+' = '+s.value);});
+}
+
+// ---------- Activity ----------
+async function loadActivity(){
+  const t=document.getElementById('actTable'); t.innerHTML='<tr><td>Loading...</td></tr>';
+  const {data,error}=await sb.from('activity').select('who,action,detail,at').order('at',{ascending:false}).limit(300);
+  if(error){t.innerHTML='<tr><td>'+esc(error.message)+'</td></tr>';return;}
+  if(!data||!data.length){t.innerHTML='<tr><td class="muted">No activity yet.</td></tr>';return;}
+  t.innerHTML='<tr><th>When</th><th>Who</th><th>Action</th><th>Detail</th></tr>'+data.map(a=>`<tr><td class="muted">${new Date(a.at).toLocaleString()}</td><td>${esc(a.who)}</td><td>${esc(a.action)}</td><td>${esc(a.detail)}</td></tr>`).join('');
+}
+
+// ---------- Settings ----------
+function renderSettings(){
+  document.getElementById('setStats').innerHTML='<span class="kpi"><b>'+KW.filter(k=>!k.deleted).length.toLocaleString()+'</b> active keywords</span><span class="kpi"><b>'+DATES.length+'</b> dates</span>';
+  document.getElementById('setDates').innerHTML=DATES.map(d=>`<span class="kpi">${esc(d)}</span>`).join('');
+}
+
+// ---------- Upload ranking sheet ----------
+let upParsed=null;
+document.getElementById('upAnalyze').onclick=async()=>{
+  const f=document.getElementById('upFile').files[0]; const dl=document.getElementById('upDate').value.trim();
+  const out=document.getElementById('upResult');
+  if(!f){out.innerHTML='<div class="statline" style="color:var(--red)">Choose a file first.</div>';return;}
+  if(!dl){out.innerHTML='<div class="statline" style="color:var(--red)">Enter a date label (e.g. 18 Jun).</div>';return;}
+  if(DATES.includes(dl)){out.innerHTML='<div class="statline" style="color:var(--red)">Date "'+esc(dl)+'" already exists. Use a different label.</div>';return;}
+  out.innerHTML='<div class="statline">Reading file...</div>';
+  const buf=await f.arrayBuffer(); const wb=XLSX.read(buf,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]];
+  const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+  const hk=Object.keys(rows[0]||{});
+  const find=names=>hk.find(h=>names.some(n=>h.toLowerCase().trim()===n));
+  const cK=find(['keyword','keywords']),cR=find(['rank']),cS=find(['# of searches','searches']),cU=find(['url found','url']),cT=find(['tags','tag']);
+  if(!cK||!cR){out.innerHTML='<div class="statline" style="color:var(--red)">Could not find Keyword/Rank columns. Headers seen: '+esc(hk.join(', '))+'</div>';return;}
+  const prank=v=>{if(v===''||v==null)return ''; if(typeof v==='number')return String(Math.round(v)); const s=String(v).trim(); if(s.toLowerCase().startsWith('not in'))return '-'; const n=+s; return isNaN(n)?'-':String(n);};
+  const psr=v=>{if(v===''||v==null||v==='N/A')return null; const n=+v; return isNaN(n)?null:n;};
+  const map={};
+  rows.forEach(r=>{const k=String(r[cK]||'').trim(); if(!k)return; map[k]={rank:prank(r[cR]),searches:cS?psr(r[cS]):null,url:cU?(String(r[cU]||'').trim()||null):null,owner:cT?(String(r[cT]||'').trim()||null):null};});
+  const known=new Set(KW.map(k=>k.kw)); let matched=0,added=0;
+  Object.keys(map).forEach(k=>{ if(known.has(k))matched++; else added++; });
+  upParsed={dl,map};
+  out.innerHTML=`<div class="statline">Parsed <b>${Object.keys(map).length.toLocaleString()}</b> rows for date <b>${esc(dl)}</b> &mdash; ${matched.toLocaleString()} existing keywords, ${added.toLocaleString()} new.</div>
+    <div class="note">This will add "${esc(dl)}" as a new date for every keyword, update searches/URLs, and add new keywords. Existing keywords not in this sheet get a blank for this date.</div>
+    <button class="btn green" id="upApply">Apply to database</button> <span id="upProg" class="muted"></span>`;
+  document.getElementById('upApply').onclick=applyUpload;
+};
+async function applyUpload(){
+  if(!upParsed)return; const {dl,map}=upParsed;
+  const prog=document.getElementById('upProg'); document.getElementById('upApply').disabled=true;
+  const newDates=[...DATES,dl]; const ni=newDates.length-1;
+  // build rows to upsert
+  const out=[]; const known=new Set(KW.map(k=>k.kw)); const now=new Date().toISOString();
+  KW.forEach(k=>{ const r=parseRanks(k.ranks,DATES.length); const m=map[k.kw];
+    r.push(m?m.rank:''); 
+    out.push({kw:k.kw,name:k.name||null,owner:(m&&m.owner)||k.owner||null,searches:(m&&m.searches!=null)?m.searches:k.searches,url:(m&&m.url)||k.url||null,ranks:r.join(','),deleted:k.deleted||false,updated_by:USER.email,updated_at:now}); });
+  Object.keys(map).forEach(k=>{ if(known.has(k))return; const m=map[k]; const r=DATES.map(()=>''); r.push(m.rank);
+    out.push({kw:k,name:null,owner:m.owner||null,searches:m.searches,url:m.url||null,ranks:r.join(','),deleted:false,updated_by:USER.email,updated_at:now}); });
+  // chunked upsert
+  const CH=500; let done=0;
+  for(let i=0;i<out.length;i+=CH){ const chunk=out.slice(i,i+CH); const {error}=await sb.from('keywords').upsert(chunk); if(error){prog.textContent='Error: '+error.message;document.getElementById('upApply').disabled=false;return;} done+=chunk.length; prog.textContent=done+' / '+out.length+' saved...'; }
+  await sb.from('meta').update({value:newDates,updated_at:now}).eq('key','dates');
+  await logAct('upload','ranking date '+dl+' ('+out.length+' rows)');
+  prog.textContent='Done! Reloading...'; setTimeout(()=>location.reload(),800);
+}
+
+// ---------- tabs ----------
+document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.sec').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); document.getElementById('sec-'+b.dataset.t).classList.add('active');
+  if(b.dataset.t==='users')loadUsers(); if(b.dataset.t==='activity')loadActivity();
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+boot();
+</script>
+</body></html>
