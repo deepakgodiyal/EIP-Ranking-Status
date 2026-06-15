@@ -71,11 +71,15 @@ footer{text-align:center;color:var(--gray);font-size:11.5px;margin:18px 0}
 .authbtns{display:flex;gap:10px;margin-top:6px}
 .authbtns button{flex:1;padding:10px;border-radius:8px;border:none;cursor:pointer;font-weight:700;font-size:13.5px}
 .autherr{color:var(--red);font-size:12.5px;min-height:16px;margin-bottom:4px}
-#authBar{position:fixed;top:10px;right:14px;z-index:300;display:none;align-items:center;gap:10px;background:#fff;padding:7px 12px;border-radius:22px;box-shadow:0 3px 12px rgba(20,40,80,.16);font-size:12.5px}
-#authBar button{border:none;border-radius:16px;padding:6px 12px;cursor:pointer;font-weight:600;font-size:12px}
-#authLogout{background:#fbeaea;color:var(--red)}
-#authUsersBtn{background:var(--navy);color:#fff}
-#delBtn{background:#fdf3e3;color:#b9821f}
+#authBar{position:fixed;top:12px;right:16px;z-index:300;display:none}
+#authToggle{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid #e2e7ef;border-radius:22px;padding:7px 14px;cursor:pointer;font-size:12.5px;font-weight:600;color:#1c2533;box-shadow:0 3px 12px rgba(20,40,80,.16)}
+#authToggle .caret{color:var(--gray);font-size:10px}
+#authMenu{position:absolute;top:46px;right:0;background:#fff;border:1px solid #e2e7ef;border-radius:12px;box-shadow:0 12px 34px rgba(20,40,80,.2);min-width:200px;padding:6px;display:none}
+#authMenu.open{display:block}
+#authMenu button{display:block;width:100%;text-align:left;border:none;background:none;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:13px;color:#1c2533;font-weight:500}
+#authMenu button:hover{background:#eef4fc}
+#authLogout{color:var(--red)}
+
 .rolebadge{padding:2px 9px;border-radius:12px;font-weight:700;font-size:11px;background:#e7f0fb;color:var(--blue);text-transform:capitalize}
 #usersModal{position:fixed;inset:0;background:rgba(16,42,76,.5);z-index:1100;display:none;align-items:center;justify-content:center}
 .umcard{background:#fff;border-radius:13px;padding:20px;width:560px;max-width:94vw;max-height:80vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
@@ -175,7 +179,14 @@ h4.sec{font-size:13px;color:var(--navy);margin:4px 0 8px}
   <div id="authErr" class="autherr"></div>
   <div class="authbtns"><button id="authSignin" class="bsave">Sign in</button><button id="authSignup" class="bcancel">Create account</button></div>
 </div></div>
-<div id="authBar"><span id="authWho"></span><button id="delBtn" class="needEdit" style="display:none">Deleted</button><button id="authUsersBtn" style="display:none">Users</button><button id="authLogout">Logout</button></div>
+<div id="authBar">
+  <button id="authToggle"><span id="authWho"></span> <span class="caret">&#9662;</span></button>
+  <div id="authMenu">
+    <button id="delBtn" class="needEdit" style="display:none">&#128465; Deleted keywords</button>
+    <button id="authUsersBtn" style="display:none">&#128100; User access</button>
+    <button id="authLogout">Logout</button>
+  </div>
+</div>
 <div id="editModal"><div class="umcard" style="width:620px">
   <div class="umhead"><b id="editTitle"></b> <button id="editClose">&times;</button></div>
   <div id="editMeta" class="umdesc"></div>
@@ -1156,8 +1167,8 @@ function hideGate(){const g=document.getElementById('authGate');if(g)g.style.dis
 function applyRole(){
   document.body.dataset.role=ROLE;
   const who=document.getElementById('authWho'); if(who)who.innerHTML=(USER?USER.email:'')+' <span class="rolebadge">'+ROLE+'</span>';
-  const ub=document.getElementById('authUsersBtn'); if(ub)ub.style.display=(ROLE==='admin')?'inline-block':'none';
-  const dbn=document.getElementById('delBtn'); if(dbn)dbn.style.display=(ROLE==='admin'||ROLE==='editor')?'inline-block':'none';
+  const ub=document.getElementById('authUsersBtn'); if(ub)ub.style.display=(ROLE==='admin')?'block':'none';
+  const dbn=document.getElementById('delBtn'); if(dbn)dbn.style.display=(ROLE==='admin'||ROLE==='editor')?'block':'none';
 }
 let pollStarted=false;
 async function afterLogin(user){
@@ -1178,9 +1189,12 @@ function wireAuthUI(){
     err.style.color=error?'var(--red)':'var(--green)';
     err.textContent=error?error.message:'Account created. If it does not sign you in, ask your admin to enable access.';};
   document.getElementById('authLogout').onclick=async()=>{if(sb)await sb.auth.signOut();};
-  document.getElementById('authUsersBtn').onclick=openUsers;
+  document.getElementById('authUsersBtn').onclick=()=>{document.getElementById('authMenu').classList.remove('open');openUsers();};
   document.getElementById('umClose').onclick=()=>document.getElementById('usersModal').style.display='none';
-  const dbn=document.getElementById('delBtn'); if(dbn)dbn.onclick=()=>{document.getElementById('delModal').style.display='flex';renderDeletedList();};
+  const at=document.getElementById('authToggle'),am=document.getElementById('authMenu');
+  if(at)at.onclick=ev=>{ev.stopPropagation();am.classList.toggle('open');};
+  document.addEventListener('click',ev=>{if(!ev.target.closest('#authBar'))am.classList.remove('open');});
+  const dbn=document.getElementById('delBtn'); if(dbn)dbn.onclick=()=>{document.getElementById('authMenu').classList.remove('open');document.getElementById('delModal').style.display='flex';renderDeletedList();};
   const dcl=document.getElementById('delClose'); if(dcl)dcl.onclick=()=>document.getElementById('delModal').style.display='none';
   document.getElementById('authPass').addEventListener('keydown',e=>{if(e.key==='Enter')si.click();});
 }
@@ -1206,6 +1220,14 @@ async function authInit(){
 
 renderSummary();renderBands();authInit();
 (function(){const p=document.getElementById('panelKwGraph');if(!p)return;const h=p.querySelector('h3');h.insertAdjacentHTML('afterbegin','<span class="chev">&#9656;</span>');h.onclick=()=>{const open=toggleCollapse(p);if(open&&kwChart)kwChart.resize();};})();
+// ESC closes anything open (modals, popups, filter dropdowns, suggestions)
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Escape')return;
+  ['usersModal','delModal','editModal'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  document.querySelectorAll('.cmt-pop,.cmt-tip,.sugg').forEach(el=>{el.style.display='none';});
+  document.querySelectorAll('.ms-panel.open').forEach(el=>el.classList.remove('open'));
+  const am2=document.getElementById('authMenu');if(am2)am2.classList.remove('open');
+});
 document.getElementById('toTop').onclick=()=>window.scrollTo({top:0,behavior:'smooth'});
 document.getElementById('toBottom').onclick=()=>window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
 </script>
