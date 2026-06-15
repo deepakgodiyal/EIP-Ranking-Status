@@ -88,7 +88,7 @@ footer{text-align:center;color:var(--gray);font-size:11.5px;margin:18px 0}
 .umdesc{font-size:12px;color:var(--gray);margin-bottom:12px}
 #usersTable .rolesel{padding:5px 8px;border-radius:7px;border:1px solid #cdd6e4}
 body[data-role="viewer"] .editbtn{display:none}
-body[data-role="public"] .editvalbtn,body[data-role="public"] .delbtn,body[data-role="public"] .cmtbtn,body[data-role="public"] #authBar,body[data-role="public"] .needEdit,body[data-role="public"] .kwicons{display:none}
+body[data-role="public"] .editvalbtn,body[data-role="public"] .delbtn,body[data-role="public"] #authBar,body[data-role="public"] .needEdit{display:none}
 body[data-role="viewer"] .delbtn,body[data-role="viewer"] .needEdit{display:none}
 .iconbtn.delbtn:hover{color:var(--red)}
 .rstbtn{border:1px solid #cdd6e4;background:#fff;border-radius:7px;padding:5px 12px;cursor:pointer;font-weight:600;color:var(--green)}
@@ -449,7 +449,10 @@ async function loadFromDB(){
         if(error){console.warn('kw load',error);return false;} all=all.concat(data||[]); if(!data||data.length<page)break; from+=page; if(from>60000)break; }
   }catch(e){console.warn(e);return false;}
   if(!all.length) return false;
-  if(metaMap.dates && Array.isArray(metaMap.dates)) D.dates=metaMap.dates;
+  if(metaMap.dates && Array.isArray(metaMap.dates) && metaMap.dates.length){ D.dates=metaMap.dates;
+    const ds=document.getElementById('dateSel'); if(ds){ds.innerHTML=D.dates.map((d,i)=>`<option value="${i}">${d}</option>`).join(''); ds.value=D.dates.length-1; curIdx=D.dates.length-1;}
+    const dfl=document.getElementById('dateFilter'); if(dfl){dfl.innerHTML=D.dates.map((d,i)=>`<option value="${i}">${d}${i===D.dates.length-1?' (latest)':''}</option>`).join(''); dfl.value=D.dates.length-1;}
+  }
   const dn=D.dates.length;
   D.kw = all.map((row,i)=>({kw:row.kw, grp:row.owner||'', searches:(row.searches==null?null:row.searches), url:row.url||null, r:parseRanks(row.ranks,dn), _i:i, _del:!!row.deleted, dbname:(row.name||''), dbby:row.updated_by||null, dbat:row.updated_at||null}));
   DBMODE=true; rebuildDerived(); return true;
@@ -475,10 +478,10 @@ function hasComment(k){return !!(ann[k.kw]&&ann[k.kw].comment);}
 function getComment(k){return (ann[k.kw]&&ann[k.kw].comment)||'';}
 async function annLoad(){
   if(sb){
-    try{const {data}=await sb.from('annotations').select('kw,edited_name,comment');
+    try{const {data}=await sb.from('comments').select('kw,comment');
       for(const k in ann) delete ann[k];
-      (data||[]).forEach(x=>{ann[x.kw]={name:x.edited_name||'',comment:x.comment||''};});
-    }catch(e){console.warn('annotations load failed',e);}
+      (data||[]).forEach(x=>{ann[x.kw]={comment:x.comment||''};});
+    }catch(e){console.warn('comments load failed',e);}
   } else {
     try{Object.assign(ann, JSON.parse(localStorage.getItem('kwAnn')||'{}'));}catch(e){}
   }
@@ -486,8 +489,8 @@ async function annLoad(){
 async function annSave(kw){
   const a=ann[kw]||{};
   if(sb){
-    const {error}=await sb.from('annotations').upsert({kw:kw,edited_name:a.name||null,comment:a.comment||null,updated_at:new Date().toISOString()});
-    if(error){alert('Save failed: '+(error.message||'no permission')); }
+    const {error}=await sb.from('comments').upsert({kw:kw,comment:a.comment||null,updated_by:(USER&&USER.email)||'public',updated_at:new Date().toISOString()});
+    if(error){alert('Comment save failed: '+(error.message||'')); }
   } else {
     localStorage.setItem('kwAnn',JSON.stringify(ann));
   }
