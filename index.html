@@ -449,7 +449,7 @@ async function loadFromDB(){
         if(error){console.warn('kw load',error);return false;} all=all.concat(data||[]); if(!data||data.length<page)break; from+=page; if(from>60000)break; }
   }catch(e){console.warn(e);return false;}
   if(!all.length) return false;
-  if(metaMap.dates && Array.isArray(metaMap.dates) && metaMap.dates.length){ D.dates=metaMap.dates;
+  if(metaMap.dates && Array.isArray(metaMap.dates) && metaMap.dates.length){ D.dates.length=0; metaMap.dates.forEach(d=>D.dates.push(d));
     const ds=document.getElementById('dateSel'); if(ds){ds.innerHTML=D.dates.map((d,i)=>`<option value="${i}">${d}</option>`).join(''); ds.value=D.dates.length-1; curIdx=D.dates.length-1;}
     const dfl=document.getElementById('dateFilter'); if(dfl){dfl.innerHTML=D.dates.map((d,i)=>`<option value="${i}">${d}${i===D.dates.length-1?' (latest)':''}</option>`).join(''); dfl.value=D.dates.length-1;}
   }
@@ -1029,7 +1029,7 @@ let enqInited=false, enqChartObj=null, enqAll=[];
 const KIDX={}; D.kw.forEach((k,i)=>KIDX[k.kw]=i);
 function latestRankOf(kw){const k=D.kw[KIDX[kw]];if(!k)return null;return k.r[k.r.length-1];}
 function rankLabel(v){return (typeof v==='number')?('#'+v):(v==='-'?'30+':'\u2014');}
-const LASTDATE=DATES[DATES.length-1];
+function LASTDATE(){return D.dates[D.dates.length-1];}
 function rankCellInner(v){
   if(v==null) return {cls:'',html:'<span class="muted">\u2014</span>'};
   if(v==='-') return {cls:'',html:'<span class="muted">-</span>'};
@@ -1046,7 +1046,7 @@ function mlabel(m){const [y,mo]=m.split('-');return MN[+mo-1]+'-'+y;}
 function monthlyCounts(dates){const c={};dates.forEach(d=>{const m=d.slice(0,7);c[m]=(c[m]||0)+1;});return ENQM.map(m=>c[m]||0);}
 function plotEnq(kw){
   const rec=enq.kw[kw]; if(!rec)return; const dts=rec.d;
-  const rankPart = rec.m ? (' &middot; latest rank '+rankSpan(latestRankOf(kw))+' <span class="muted">('+LASTDATE+')</span>') : ' <span class="muted">&middot; not in rank tracker</span>';
+  const rankPart = rec.m ? (' &middot; latest rank '+rankSpan(latestRankOf(kw))+' <span class="muted">('+LASTDATE()+')</span>') : ' <span class="muted">&middot; not in rank tracker</span>';
   const lastEnq = dts.length?(' &middot; last enquiry '+fmtDate(dts[dts.length-1])):'';
   document.getElementById('enqInfo').innerHTML=escH(kw)+' <span class="muted">('+rec.o+')</span> &mdash; <b>'+rec.n+'</b> enquiries'+rankPart+lastEnq;
   const counts=monthlyCounts(dts);
@@ -1119,7 +1119,7 @@ function enqHead(){
   const rangeActive=st.fA||st.tA;
   let cols=`<th class="sortable" data-s="kw">Keyword${sa('kw')}</th><th class="sortable" data-s="owner">Owner${sa('owner')}</th><th class="num sortable" data-s="total">Enquiries${sa('total')}</th>`;
   if(rangeActive) cols+=`<th class="num sortable" data-s="cA">In period${sa('cA')}</th>`;
-  cols+=`<th class="num sortable" data-s="lr">Latest rank (${LASTDATE})${sa('lr')}</th><th class="num sortable" data-s="last">Last enquiry${sa('last')}</th>`;
+  cols+=`<th class="num sortable" data-s="lr">Latest rank (${LASTDATE()})${sa('lr')}</th><th class="num sortable" data-s="last">Last enquiry${sa('last')}</th>`;
   return '<thead><tr>'+cols+'</tr></thead>';
 }
 function enqRowHTML(r){
@@ -1167,7 +1167,7 @@ if(enq){
       const lrTxt=!r.m?'Not in tracker':((typeof lr==='number')?lr:(lr==='-'?'Not in top 30':''));
       const row=[r.kw,r.owner,r.total];
       if(rangeActive) row.push(r.cA);
-      row.push(lrTxt, r.m?LASTDATE:'', fmtDate(rangeActive?r.lastA:r.last));
+      row.push(lrTxt, r.m?LASTDATE():'', fmtDate(rangeActive?r.lastA:r.last));
       return row;
     });
     return {header,data};
