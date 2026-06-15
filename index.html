@@ -369,7 +369,7 @@ const ann = {};                                  // kw -> {name, comment}
 const KW2I={}; D.kw.forEach((k,i)=>KW2I[k.kw]=i);
 const ALLGROUPS=Object.keys(D.groups);
 const GISPERSON={}; ALLGROUPS.forEach(g=>GISPERSON[g]=D.groups[g].isPerson);
-const OVR={};
+const OVR={}; const OVRMETA={};
 function blankSeries(){return D.dates.map(()=>({b3:0,b4_10:0,b11_30:0,b31_50:0,b50:0,total:0}));}
 function recomputeGroups(){
   const G2={}; ALLGROUPS.forEach(g=>G2[g]={isPerson:GISPERSON[g],series:blankSeries()});
@@ -390,16 +390,17 @@ function applyOverrides(){
     for(const f in o){if(f.indexOf('rank:')===0){const di=D.dates.indexOf(f.slice(5)); if(di>=0){const val=o[f]; rec.r[di]=(val===''||val==null)?null:(val==='-'?'-':(isNaN(+val)?'-':+val));}}}
   }
 }
-async function ovrLoad(){ if(!sb)return; try{const {data}=await sb.from('kw_overrides').select('kw,field,value'); for(const k in OVR)delete OVR[k]; (data||[]).forEach(x=>{(OVR[x.kw]=OVR[x.kw]||{})[x.field]=x.value;}); }catch(e){console.warn('ovr load',e);} }
-async function ovrSet(kw,field,value){ (OVR[kw]=OVR[kw]||{})[field]=value; if(sb){const {error}=await sb.from('kw_overrides').upsert({kw,field,value,updated_at:new Date().toISOString()}); if(error){alert('Save failed: '+(error.message||'no permission'));return false;}} return true; }
+async function ovrLoad(){ if(!sb)return; try{const {data}=await sb.from('kw_overrides').select('kw,field,value,updated_by,updated_at'); for(const k in OVR)delete OVR[k]; for(const k in OVRMETA)delete OVRMETA[k]; (data||[]).forEach(x=>{(OVR[x.kw]=OVR[x.kw]||{})[x.field]=x.value;(OVRMETA[x.kw]=OVRMETA[x.kw]||{})[x.field]={by:x.updated_by,at:x.updated_at};}); }catch(e){console.warn('ovr load',e);} }
+async function ovrSet(kw,field,value){ (OVR[kw]=OVR[kw]||{})[field]=value; const by=(USER&&USER.email)||null; const at=new Date().toISOString(); (OVRMETA[kw]=OVRMETA[kw]||{})[field]={by,at}; if(sb){const {error}=await sb.from('kw_overrides').upsert({kw,field,value,updated_by:by,updated_at:at}); if(error){alert('Save failed: '+(error.message||'no permission'));return false;}} return true; }
 async function ovrDel(kw,field){ if(OVR[kw])delete OVR[kw][field]; if(sb){await sb.from('kw_overrides').delete().eq('kw',kw).eq('field',field);} }
 function refreshData(){ G=recomputeGroups(); renderSummary(); renderBands(); renderKw(false); }
 async function deleteKw(i){ if(!canEdit())return; const k=D.kw[i]; if(!confirm('Delete "'+dispName(k)+'" from the dashboard? You can restore it from the Deleted list.'))return; k._del=true; await ovrSet(k.kw,'deleted','1'); refreshData(); }
 async function restoreKw(kw){ const k=D.kw[KW2I[kw]]; if(k)k._del=false; await ovrDel(kw,'deleted'); refreshData(); renderDeletedList(); }
 function deletedKws(){ return Object.keys(OVR).filter(kw=>OVR[kw]&&OVR[kw].deleted==='1'); }
+function fmtWhen(at){ if(!at)return ''; try{const d=new Date(at);const MN2=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];const p=n=>String(n).padStart(2,'0');return p(d.getDate())+'-'+MN2[d.getMonth()]+'-'+d.getFullYear()+' '+p(d.getHours())+':'+p(d.getMinutes());}catch(e){return at;} }
 function renderDeletedList(){ const t=document.getElementById('delTable'); if(!t)return; const ks=deletedKws();
   if(!ks.length){t.innerHTML='<tr><td class="muted">No deleted keywords.</td></tr>';return;}
-  t.innerHTML='<tr><th>Keyword</th><th></th></tr>'+ks.map(kw=>`<tr><td>${escH(kw)}</td><td class="num"><button class="rstbtn" data-kw="${escH(kw)}">Restore</button></td></tr>`).join('');
+  t.innerHTML='<tr><th>Keyword</th><th>Deleted by</th><th>When</th><th></th></tr>'+ks.map(kw=>{const m=(OVRMETA[kw]&&OVRMETA[kw].deleted)||{};return `<tr><td>${escH(kw)}</td><td class="muted">${m.by?escH(m.by):'—'}</td><td class="muted">${fmtWhen(m.at)}</td><td class="num"><button class="rstbtn" data-kw="${escH(kw)}">Restore</button></td></tr>`;}).join('');
   t.querySelectorAll('.rstbtn').forEach(b=>b.onclick=()=>restoreKw(b.dataset.kw));
 }
 function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
