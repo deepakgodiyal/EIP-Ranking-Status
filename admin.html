@@ -182,7 +182,7 @@ async function logAct(action,detail){try{await sb.from('activity').insert({who:U
 async function boot(){
   const {data:{session}}=await sb.auth.getSession();
   if(session&&session.user){await afterLogin(session.user);}
-  sb.auth.onAuthStateChange((_e,s)=>{ if(s&&s.user)afterLogin(s.user); else location.reload(); });
+  sb.auth.onAuthStateChange((event,s)=>{ if(event==='SIGNED_IN' && s && s.user) afterLogin(s.user); });
 }
 document.getElementById('signin').onclick=async()=>{
   const e=document.getElementById('lerr');e.textContent='';
