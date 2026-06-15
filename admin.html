@@ -161,7 +161,7 @@ tr:hover td{background:#f7f9fc}
 <div class="modal" id="kwModal"><div class="mcard">
   <div class="mhead"><h3 id="kwmTitle">Edit keyword</h3><button id="kwmClose">&times;</button></div>
   <div id="kwmMeta" class="muted" style="font-size:12px;margin-bottom:6px"></div>
-  <div class="full"><label>Keyword (unique id) <input type="text" id="f_kw"></label></div>
+  <div class="full"><label>Keyword (edit this to rename it everywhere) <input type="text" id="f_kw"></label></div>
   <div class="fgrid">
     <label>Display name (blank = same as keyword) <input type="text" id="f_name"></label>
     <label>Owner <select id="f_owner"></select></label>
@@ -266,7 +266,7 @@ function openKw(kw){
   const k=KW.find(x=>x.kw===kw); if(!k)return; editKey=kw;
   document.getElementById('kwmTitle').textContent='Edit keyword';
   document.getElementById('kwmMeta').textContent=k.updated_by?('Last edited by '+k.updated_by+(k.updated_at?(' · '+new Date(k.updated_at).toLocaleString()):'')):'';
-  document.getElementById('f_kw').value=k.kw; document.getElementById('f_kw').disabled=true;
+  document.getElementById('f_kw').value=k.kw; document.getElementById('f_kw').disabled=false;
   document.getElementById('f_name').value=k.name||'';
   document.getElementById('f_owner').value=k.owner||'';
   document.getElementById('f_searches').value=k.searches==null?'':k.searches;
@@ -286,16 +286,22 @@ document.getElementById('kwmClose').onclick=closeModal;
 document.getElementById('kwmCancel').onclick=closeModal;
 document.getElementById('kwmSave').onclick=async()=>{
   const kw=document.getElementById('f_kw').value.trim(); if(!kw){alert('Keyword required');return;}
+  if(kw!==editKey && KW.some(x=>x.kw===kw)){ alert('A keyword "'+kw+'" already exists. Use a different name.'); return; }
   const ranks=[...document.querySelectorAll('#f_ranks input')].sort((a,b)=>a.dataset.d-b.dataset.d).map(i=>i.value.trim());
   const row={kw,name:document.getElementById('f_name').value.trim()||null,owner:document.getElementById('f_owner').value||null,
     searches:(document.getElementById('f_searches').value.trim()===''?null:Number(document.getElementById('f_searches').value)),
     url:document.getElementById('f_url').value.trim()||null, ranks:ranks.join(','), deleted:false,
     updated_by:USER.email, updated_at:new Date().toISOString()};
-  const {error}=await sb.from('keywords').upsert(row); if(error){alert('Save failed: '+error.message);return;}
+  let res;
+  if(editKey){ res=await sb.from('keywords').update(row).eq('kw',editKey); }
+  else { res=await sb.from('keywords').upsert(row); }
+  if(res.error){alert('Save failed: '+res.error.message);return;}
+  if(editKey && kw!==editKey){ await sb.from('comments').update({kw}).eq('kw',editKey); if(editKey in COMMENTS){COMMENTS[kw]=COMMENTS[editKey];delete COMMENTS[editKey];} }
   const cm=document.getElementById('f_comment').value.trim();
   if((COMMENTS[kw]||'')!==cm){ await sb.from('comments').upsert({kw,comment:cm||null,updated_by:USER.email,updated_at:new Date().toISOString()}); COMMENTS[kw]=cm; }
-  await logAct(editKey?'edit':'add','keyword: '+kw);
-  const ix=KW.findIndex(x=>x.kw===kw); if(ix>=0)KW[ix]=row; else KW.push(row);
+  await logAct(editKey?(kw!==editKey?'rename':'edit'):'add', (editKey&&kw!==editKey)?(editKey+' -> '+kw):('keyword: '+kw));
+  if(editKey){ const ix=KW.findIndex(x=>x.kw===editKey); if(ix>=0)KW[ix]=row; }
+  else KW.push(row);
   if(row.owner&&!OWNERS.includes(row.owner)){OWNERS.push(row.owner);OWNERS.sort();}
   closeModal(); renderKw();
 };
