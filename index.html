@@ -449,6 +449,7 @@ async function loadFromDB(){
         if(error){console.warn('kw load',error);return false;} all=all.concat(data||[]); if(!data||data.length<page)break; from+=page; if(from>60000)break; }
   }catch(e){console.warn(e);return false;}
   if(!all.length) return false;
+  if(metaMap.enquiries && D.enq){ Object.assign(D.enq, metaMap.enquiries); ENQM=(D.enq.range?monthListJS(D.enq.range[0],D.enq.range[1]):[]); }
   if(metaMap.dates && Array.isArray(metaMap.dates) && metaMap.dates.length){ D.dates.length=0; metaMap.dates.forEach(d=>D.dates.push(d));
     const ds=document.getElementById('dateSel'); if(ds){ds.innerHTML=D.dates.map((d,i)=>`<option value="${i}">${d}</option>`).join(''); ds.value=D.dates.length-1; curIdx=D.dates.length-1;}
     const dfl=document.getElementById('dateFilter'); if(dfl){dfl.innerHTML=D.dates.map((d,i)=>`<option value="${i}">${d}${i===D.dates.length-1?' (latest)':''}</option>`).join(''); dfl.value=D.dates.length-1;}
@@ -1039,7 +1040,7 @@ function rankCellInner(v){
 function latestRankCell(kw){const rec=enq&&enq.kw[kw];if(!rec||!rec.m)return '<td class="num muted">\u2014</td>';const v=latestRankOf(kw);const o=rankCellInner(v);return `<td class="num ${o.cls}">${o.html}</td>`;}
 function rankSpan(v){if(v==null)return '<span class="muted">\u2014</span>';if(v==='-')return '<span class="muted">-</span>';const cls=v<=3?'r3':(v<=10?'r10':'r30');return `<span class="${cls}" style="padding:2px 8px;border-radius:6px;font-weight:700">${v}</span>`;}
 function monthListJS(a,b){let [ys,ms]=a.slice(0,7).split('-').map(Number);let [ye,me]=b.slice(0,7).split('-').map(Number);const o=[];let y=ys,m=ms;while(y<ye||(y===ye&&m<=me)){o.push(y+'-'+String(m).padStart(2,'0'));m++;if(m>12){m=1;y++;}}return o;}
-const ENQM = enq?monthListJS(enq.range[0],enq.range[1]):[];
+let ENQM = enq?monthListJS(enq.range[0],enq.range[1]):[];
 const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function fmtDate(iso){if(!iso)return '';const p=String(iso).split('-');if(p.length!==3)return iso;return p[2]+'-'+MN[+p[1]-1]+'-'+p[0];}
 function mlabel(m){const [y,mo]=m.split('-');return MN[+mo-1]+'-'+y;}

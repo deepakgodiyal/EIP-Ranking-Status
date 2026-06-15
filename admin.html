@@ -122,7 +122,13 @@ tr:hover td{background:#f7f9fc}
       </div>
       <div class="card">
         <h2>Upload enquiries sheet</h2>
-        <div class="desc muted">Coming in the next update — enquiries will move to the database too.</div>
+        <div class="desc">Upload the full "All Enquiries" sheet. It replaces all enquiries data on the site.</div>
+        <div class="note">Expected columns: <b>Date, Keywords</b>. Each row = one enquiry.</div>
+        <div class="toolbar">
+          <input type="file" id="enFile" accept=".xlsx,.xls">
+          <button class="btn primary" id="enAnalyze">Analyze</button>
+        </div>
+        <div id="enResult"></div>
       </div>
     </div>
 
@@ -399,6 +405,38 @@ document.getElementById('rmLast').onclick=async()=>{
   for(let i=0;i<out.length;i+=CH){const c=out.slice(i,i+CH); const {error}=await sb.from('keywords').upsert(c); if(error){prog.textContent='Error: '+error.message;document.getElementById('rmLast').disabled=false;return;} done+=c.length; prog.textContent=done+' / '+out.length+'...';}
   await sb.from('meta').update({value:DATES.slice(0,-1),updated_at:now}).eq('key','dates');
   await logAct('remove-date',last); prog.textContent='Done! Reloading...'; setTimeout(()=>location.reload(),700);
+};
+// ---------- Upload enquiries ----------
+let enParsed=null;
+document.getElementById('enAnalyze').onclick=async()=>{
+  const f=document.getElementById('enFile').files[0]; const out=document.getElementById('enResult');
+  if(!f){out.innerHTML='<div class="statline" style="color:var(--red)">Choose a file first.</div>';return;}
+  out.innerHTML='<div class="statline">Reading file...</div>';
+  const buf=await f.arrayBuffer(); const wb=XLSX.read(buf,{type:'array',cellDates:true}); const ws=wb.Sheets[wb.SheetNames[0]];
+  const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+  const hk=Object.keys(rows[0]||{}); const find=n=>hk.find(h=>n.some(x=>h.toLowerCase().trim()===x));
+  const cD=find(['date']), cK=find(['keywords','keyword']);
+  if(!cK){out.innerHTML='<div class="statline" style="color:var(--red)">Could not find a Keywords column. Headers: '+esc(hk.join(', '))+'</div>';return;}
+  const ownerOf={}; KW.forEach(k=>ownerOf[k.kw]=k.owner);
+  const toISO=v=>{ if(v instanceof Date){return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0');} const s=String(v||'').trim(); return s.length>=10?s.slice(0,10):''; };
+  const kwAgg={}; let total=0,minD=null,maxD=null; const byOwner={};
+  rows.forEach(r=>{ const k=String(r[cK]||'').trim(); if(!k)return; total++;
+    const ds=cD?toISO(r[cD]):''; const m=(k in ownerOf); const o=m?(ownerOf[k]||'Not in tracker'):'Not in tracker';
+    if(!kwAgg[k])kwAgg[k]={n:0,d:[],o,m}; kwAgg[k].n++; if(ds)kwAgg[k].d.push(ds);
+    byOwner[o]=(byOwner[o]||0)+1; if(ds){if(!minD||ds<minD)minD=ds; if(!maxD||ds>maxD)maxD=ds;} });
+  Object.values(kwAgg).forEach(a=>a.d.sort());
+  const matchedKw=Object.values(kwAgg).filter(a=>a.m).length;
+  const bo={}; Object.entries(byOwner).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>bo[k]=v);
+  enParsed={total,matchedKw,distinctKw:Object.keys(kwAgg).length,range:[minD,maxD],byOwner:bo,kw:kwAgg};
+  out.innerHTML=`<div class="statline">Parsed <b>${total.toLocaleString()}</b> enquiries &mdash; ${Object.keys(kwAgg).length.toLocaleString()} keywords (${matchedKw.toLocaleString()} in tracker), dates ${esc(minD||'?')} to ${esc(maxD||'?')}.</div>
+    <div class="note">This will <b>replace</b> all enquiries data on the public site.</div>
+    <button class="btn green" id="enApply">Apply to database</button> <span id="enProg" class="muted"></span>`;
+  document.getElementById('enApply').onclick=async()=>{
+    document.getElementById('enApply').disabled=true; const p=document.getElementById('enProg'); p.textContent='Saving...';
+    const {error}=await sb.from('meta').upsert({key:'enquiries',value:enParsed,updated_at:new Date().toISOString()});
+    if(error){p.textContent='Error: '+error.message;document.getElementById('enApply').disabled=false;return;}
+    await logAct('upload','enquiries ('+enParsed.total+' rows)'); p.textContent='Done! Saved.';
+  };
 };
 // ---------- tabs ----------
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{
