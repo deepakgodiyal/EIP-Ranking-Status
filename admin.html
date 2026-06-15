@@ -149,6 +149,11 @@ tr:hover td{background:#f7f9fc}
         <div class="desc">Tracked dates (from the database):</div>
         <div id="setDates"></div>
       </div>
+      <div class="card">
+        <h2>Undo last upload</h2>
+        <div class="desc">Removes the most recent date from every keyword (use if an upload went wrong).</div>
+        <button class="btn ghost" id="rmLast">Remove last date</button> <span id="rmProg" class="muted"></span>
+      </div>
     </div>
   </div>
 </div>
@@ -165,6 +170,7 @@ tr:hover td{background:#f7f9fc}
   </div>
   <div class="muted" style="font-size:12px;margin-bottom:4px">Rank on each date (number, "-" = not in top 30, blank = not tracked):</div>
   <div class="rgrid" id="f_ranks"></div>
+  <div class="full"><label>Comment / notes (visible to everyone on the site) <textarea id="f_comment" rows="3" style="width:100%;padding:8px;border:1px solid #cdd6e4;border-radius:8px;font-family:inherit;font-size:13px"></textarea></label></div>
   <div class="mrow"><button class="btn ghost" id="kwmCancel">Cancel</button><button class="btn primary" id="kwmSave">Save</button></div>
 </div></div>
 
@@ -172,7 +178,7 @@ tr:hover td{background:#f7f9fc}
 const SB_URL='https://jmsjgaocqwkffsyjekcx.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc2pnYW9jcXdrZmZzeWpla2N4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0Nzg3MDEsImV4cCI6MjA5NzA1NDcwMX0.g7UXaW648xzecbgLQVa5i_7IZaorfcaDzz2-2Rp5euY';
 const sb=window.supabase.createClient(SB_URL,SB_KEY);
-let USER=null, ROLE='viewer', KW=[], DATES=[], OWNERS=[];
+let USER=null, ROLE='viewer', KW=[], DATES=[], OWNERS=[], COMMENTS={};
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 function joinRanks(r){return r.map(v=>v==null?'':(v===''?'':v)).join(',');}
 function parseRanks(s,n){const a=String(s||'').split(',').map(x=>{x=x.trim();return x;}); while(a.length<n)a.push(''); return a.slice(0,n);}
@@ -209,6 +215,7 @@ async function loadAll(){
   KW=[]; let from=0,page=1000;
   while(true){ const {data,error}=await sb.from('keywords').select('kw,name,owner,searches,url,ranks,deleted,updated_by,updated_at').range(from,from+page-1);
     if(error){alert('Load failed: '+error.message);break;} KW=KW.concat(data||[]); if(!data||data.length<page)break; from+=page; if(from>60000)break; }
+  try{const {data}=await sb.from('comments').select('kw,comment'); COMMENTS={}; (data||[]).forEach(c=>COMMENTS[c.kw]=c.comment||'');}catch(e){}
   OWNERS=[...new Set(KW.map(k=>k.owner).filter(Boolean))].sort();
   const os=document.getElementById('kwOwner'); os.innerHTML='<option value="">All owners</option>'+OWNERS.map(o=>`<option>${esc(o)}</option>`).join('');
   const fo=document.getElementById('f_owner'); fo.innerHTML=OWNERS.map(o=>`<option>${esc(o)}</option>`).join('');
@@ -265,6 +272,7 @@ function openKw(kw){
   document.getElementById('f_searches').value=k.searches==null?'':k.searches;
   document.getElementById('f_url').value=k.url||'';
   fillRanks(parseRanks(k.ranks,DATES.length));
+  document.getElementById('f_comment').value=COMMENTS[k.kw]||'';
   openModal();
 }
 document.getElementById('kwAdd').onclick=()=>{
@@ -272,7 +280,7 @@ document.getElementById('kwAdd').onclick=()=>{
   document.getElementById('f_kw').value=''; document.getElementById('f_kw').disabled=false;
   document.getElementById('f_name').value=''; document.getElementById('f_owner').value=OWNERS[0]||'';
   document.getElementById('f_searches').value=''; document.getElementById('f_url').value='';
-  fillRanks(DATES.map(()=>'')); openModal();
+  fillRanks(DATES.map(()=>'')); document.getElementById('f_comment').value=''; openModal();
 };
 document.getElementById('kwmClose').onclick=closeModal;
 document.getElementById('kwmCancel').onclick=closeModal;
@@ -284,6 +292,8 @@ document.getElementById('kwmSave').onclick=async()=>{
     url:document.getElementById('f_url').value.trim()||null, ranks:ranks.join(','), deleted:false,
     updated_by:USER.email, updated_at:new Date().toISOString()};
   const {error}=await sb.from('keywords').upsert(row); if(error){alert('Save failed: '+error.message);return;}
+  const cm=document.getElementById('f_comment').value.trim();
+  if((COMMENTS[kw]||'')!==cm){ await sb.from('comments').upsert({kw,comment:cm||null,updated_by:USER.email,updated_at:new Date().toISOString()}); COMMENTS[kw]=cm; }
   await logAct(editKey?'edit':'add','keyword: '+kw);
   const ix=KW.findIndex(x=>x.kw===kw); if(ix>=0)KW[ix]=row; else KW.push(row);
   if(row.owner&&!OWNERS.includes(row.owner)){OWNERS.push(row.owner);OWNERS.sort();}
@@ -344,10 +354,12 @@ document.getElementById('upAnalyze').onclick=async()=>{
   const psr=v=>{if(v===''||v==null||v==='N/A')return null; const n=+v; return isNaN(n)?null:n;};
   const map={};
   rows.forEach(r=>{const k=String(r[cK]||'').trim(); if(!k)return; map[k]={rank:prank(r[cR]),searches:cS?psr(r[cS]):null,url:cU?(String(r[cU]||'').trim()||null):null,owner:cT?(String(r[cT]||'').trim()||null):null};});
-  const known=new Set(KW.map(k=>k.kw)); let matched=0,added=0;
-  Object.keys(map).forEach(k=>{ if(known.has(k))matched++; else added++; });
+  const known=new Set(KW.map(k=>k.kw));
+  const newKws=Object.keys(map).filter(k=>!known.has(k));
+  const matched=Object.keys(map).length-newKws.length;
   upParsed={dl,map};
-  out.innerHTML=`<div class="statline">Parsed <b>${Object.keys(map).length.toLocaleString()}</b> rows for date <b>${esc(dl)}</b> &mdash; ${matched.toLocaleString()} existing keywords, ${added.toLocaleString()} new.</div>
+  out.innerHTML=`<div class="statline">Parsed <b>${Object.keys(map).length.toLocaleString()}</b> rows for date <b>${esc(dl)}</b> &mdash; ${matched.toLocaleString()} existing keywords, ${newKws.length.toLocaleString()} new.</div>
+    ${newKws.length?`<div class="note"><b>New keyword${newKws.length>1?'s':''} (${newKws.length}):</b><br>${newKws.map(k=>'&bull; '+esc(k)).join('<br>')}</div>`:''}
     <div class="note">This will add "${esc(dl)}" as a new date for every keyword, update searches/URLs, and add new keywords. Existing keywords not in this sheet get a blank for this date.</div>
     <button class="btn green" id="upApply">Apply to database</button> <span id="upProg" class="muted"></span>`;
   document.getElementById('upApply').onclick=applyUpload;
@@ -371,6 +383,17 @@ async function applyUpload(){
   prog.textContent='Done! Reloading...'; setTimeout(()=>location.reload(),800);
 }
 
+document.getElementById('rmLast').onclick=async()=>{
+  if(!DATES.length)return; const last=DATES[DATES.length-1];
+  if(!confirm('Remove the last date "'+last+'" from ALL keywords? This undoes the latest upload and cannot be reversed.'))return;
+  const prog=document.getElementById('rmProg'); document.getElementById('rmLast').disabled=true;
+  const now=new Date().toISOString();
+  const out=KW.map(k=>{const r=parseRanks(k.ranks,DATES.length); r.pop(); return {kw:k.kw,name:k.name||null,owner:k.owner||null,searches:k.searches,url:k.url||null,ranks:r.join(','),deleted:k.deleted||false,updated_by:USER.email,updated_at:now};});
+  const CH=500; let done=0;
+  for(let i=0;i<out.length;i+=CH){const c=out.slice(i,i+CH); const {error}=await sb.from('keywords').upsert(c); if(error){prog.textContent='Error: '+error.message;document.getElementById('rmLast').disabled=false;return;} done+=c.length; prog.textContent=done+' / '+out.length+'...';}
+  await sb.from('meta').update({value:DATES.slice(0,-1),updated_at:now}).eq('key','dates');
+  await logAct('remove-date',last); prog.textContent='Done! Reloading...'; setTimeout(()=>location.reload(),700);
+};
 // ---------- tabs ----------
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.remove('active'));
