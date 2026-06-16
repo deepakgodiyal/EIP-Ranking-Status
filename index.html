@@ -1264,7 +1264,7 @@ async function openUsers(){
 }
 async function authInit(){
   const badge=document.getElementById('syncBadge');
-  if(PUBLIC){ document.body.dataset.role='public'; if(badge){badge.textContent='Live';badge.className='syncbadge sync-shared';} const ok=await loadFromDB(); if(!ok){G=recomputeGroups();} renderSummary(); renderBands(); renderKw(true); return; }
+  if(PUBLIC){ document.body.dataset.role='public'; if(badge){badge.textContent='Live';badge.className='syncbadge sync-shared';} const ok=await loadFromDB(); if(!ok){G=recomputeGroups();} await annLoad(); renderSummary(); renderBands(); renderKw(true); return; }
   wireAuthUI();
   if(!sb){ if(badge){badge.textContent='Local';badge.className='syncbadge sync-local';} document.body.dataset.role='admin'; await annLoad(); renderKw(true); return; }
   if(badge){badge.textContent='Shared';badge.className='syncbadge sync-shared';}
