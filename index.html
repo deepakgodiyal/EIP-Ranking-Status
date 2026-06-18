@@ -314,9 +314,11 @@ h4.sec{font-size:13px;color:var(--navy);margin:4px 0 8px}
         <option value="loss">Biggest losers</option>
         <option value="srchdesc">Highest search volume</option>
         <option value="srchasc">Lowest search volume</option>
+        <option value="combo">High search + enquiries (combined)</option>
         <option value="enqdesc">Most enquiries</option>
         <option value="enqasc">Fewest enquiries</option>
       </select>
+      <div class="ms" id="rankMs"><button type="button" class="ms-btn" id="rankBtn">Rank by &#9662;</button><div class="ms-panel" id="rankPanel"></div></div>
       <label class="cmtfilter"><input type="checkbox" id="hasCmt"> Has comment</label>
       <button class="resetbtn" id="resetBtn">Reset</button>
       <button class="exportbtn" id="exportXlsxBtn">&#11015; Excel (.xlsx)</button>
@@ -693,6 +695,23 @@ function moveAt(k,i){
   return 'same';
 }
 function enqOf(k){return (D.enq&&D.enq.kw[k.kw])?D.enq.kw[k.kw].n:0;}
+const rankBySet=new Set();
+const RANKMETRICS=[
+  {id:'searches',label:'Search volume',dir:-1,val:k=>(k.searches==null?-1:k.searches)},
+  {id:'enq',label:'Enquiries',dir:-1,val:k=>enqOf(k)},
+  {id:'pos',label:'Best position',dir:1,val:k=>{const v=rankAt(k,selDate());return (typeof v==='number')?v:99999;}},
+  {id:'gain',label:'Improvement',dir:-1,val:k=>{const c=chgAt(k,selDate());return c==null?-99999:c;}}
+];
+(function(){
+  const btn=document.getElementById('rankBtn'), panel=document.getElementById('rankPanel'); if(!btn)return;
+  function upd(){btn.innerHTML=(rankBySet.size?rankBySet.size+' selected':'Rank by')+' &#9662;';}
+  panel.innerHTML=RANKMETRICS.map(m=>`<label><input type="checkbox" value="${m.id}">${m.label}</label>`).join('')+'<div class="ms-actions"><button type="button" id="rankClear">Clear</button></div>';
+  panel.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.onchange=()=>{cb.checked?rankBySet.add(cb.value):rankBySet.delete(cb.value);upd();renderKw(true);});
+  document.getElementById('rankClear').onclick=()=>{panel.querySelectorAll('input').forEach(cb=>cb.checked=false);rankBySet.clear();upd();renderKw(true);};
+  btn.onclick=e=>{e.stopPropagation();panel.classList.toggle('open');};
+  document.addEventListener('click',e=>{if(!e.target.closest('#rankMs'))panel.classList.remove('open');});
+  upd();
+})();
 function cellRank(v,pin){
   if(pin){const t=(v==null)?'':(v==='-'?'-':v);return `<td class="num ${pin}${(v==null||v==='-')?' muted':''}">${t}</td>`;}
   if(v==null) return '<td class="num muted"></td>';
@@ -751,6 +770,14 @@ function filteredKw(){
     });
     return rows;
   }
+  if(rankBySet.size){
+    const idx=new Map(rows.map(k=>[k,0]));
+    rankBySet.forEach(mid=>{ const m=RANKMETRICS.find(x=>x.id===mid); if(!m)return;
+      const sorted=[...rows].sort((a,b)=> m.dir*(m.val(a)-m.val(b)));
+      sorted.forEach((k,i)=>idx.set(k, idx.get(k)+i)); });
+    rows.sort((a,b)=>idx.get(a)-idx.get(b));
+    return rows;
+  }
   const sort=document.getElementById('sortBy').value;
   const big=1e9;
   if(sort==='posasc') rows.sort((a,b)=>(rankAt(a,di)??big)-(rankAt(b,di)??big));
@@ -759,6 +786,11 @@ function filteredKw(){
   else if(sort==='loss') rows.sort((a,b)=>(chgAt(a,di)??big)-(chgAt(b,di)??big));
   else if(sort==='srchdesc') rows.sort((a,b)=>(b.searches??-1)-(a.searches??-1));
   else if(sort==='srchasc') rows.sort((a,b)=>(a.searches??1e15)-(b.searches??1e15));
+  else if(sort==='combo'){
+    const byS=[...rows].sort((a,b)=>(b.searches||0)-(a.searches||0)); const sR=new Map(); byS.forEach((k,i)=>sR.set(k,i));
+    const byE=[...rows].sort((a,b)=>(enqOf(b)||0)-(enqOf(a)||0)); const eR=new Map(); byE.forEach((k,i)=>eR.set(k,i));
+    rows.sort((a,b)=>(sR.get(a)+eR.get(a))-(sR.get(b)+eR.get(b)));
+  }
   else if(sort==='enqdesc') rows.sort((a,b)=>enqOf(b)-enqOf(a));
   else if(sort==='enqasc') rows.sort((a,b)=>enqOf(a)-enqOf(b));
   return rows;
@@ -828,6 +860,7 @@ document.getElementById('resetBtn').onclick=()=>{
   document.getElementById('hasCmt').checked=false;
   dateFilter.value=DATES.length-1;
   hdrSort=null;
+  rankBySet.clear(); const rp=document.getElementById('rankPanel'); if(rp){rp.querySelectorAll('input').forEach(cb=>cb.checked=false);} const rb=document.getElementById('rankBtn'); if(rb)rb.innerHTML='Rank by &#9662;';
   renderKw(true);
 };
 document.getElementById('moreBtn').onclick=()=>{appendRows(curRows.length);};
