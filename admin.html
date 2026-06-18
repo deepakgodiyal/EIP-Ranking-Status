@@ -101,7 +101,15 @@ tr:hover td{background:#f7f9fc}
           <select id="kwOwner"><option value="">All owners</option></select>
           <select id="kwShow"><option value="active">Active only</option><option value="deleted">Deleted only</option><option value="all">All</option></select>
           <button class="btn green" id="kwAdd">+ Add keyword</button>
+          <button class="btn ghost sm" id="selAll">Select all matching</button>
           <span class="muted" id="kwCount"></span>
+        </div>
+        <div id="bulkBar" style="display:none;background:#eef4fc;border-radius:9px;padding:10px 14px;margin-bottom:12px;display:none;align-items:center;gap:12px;flex-wrap:wrap">
+          <b id="bulkCount"></b>
+          <span>Move to <select id="bulkOwner"></select></span>
+          <button class="btn primary sm" id="bulkMoveBtn">Move</button>
+          <button class="btn sm" id="bulkDelBtn" style="background:#fbeaea;color:var(--red)">Delete</button>
+          <button class="btn ghost sm" id="bulkClear">Clear selection</button>
         </div>
         <div style="overflow-x:auto"><table id="kwTable"></table></div>
         <div class="pager"><button id="kwPrev">&larr; Prev</button><span id="kwPage"></span><button id="kwNext">Next &rarr;</button></div>
@@ -129,6 +137,16 @@ tr:hover td{background:#f7f9fc}
           <button class="btn primary" id="enAnalyze">Analyze</button>
         </div>
         <div id="enResult"></div>
+      </div>
+      <div class="card">
+        <h2>Add keywords in bulk (from Excel)</h2>
+        <div class="desc">Add many new keywords at once &mdash; e.g. assign thousands of keywords to a person. Keywords that already exist are skipped.</div>
+        <div class="note">Columns: <b>Keyword, Owner</b> (required) &middot; <b>URL, Searches</b> (optional). New keywords start with blank ranks.</div>
+        <div class="toolbar">
+          <input type="file" id="addFile" accept=".xlsx,.xls">
+          <button class="btn primary" id="addAnalyze">Analyze</button>
+        </div>
+        <div id="addResult"></div>
       </div>
     </div>
 
@@ -230,7 +248,13 @@ async function loadAll(){
 }
 
 // ---------- Keywords table ----------
-let kwPage=0; const PER=50;
+let kwPage=0; const PER=50; const selKw=new Set();
+function updateBulkBar(){
+  const bar=document.getElementById('bulkBar');
+  if(selKw.size>0){ bar.style.display='flex'; document.getElementById('bulkCount').textContent=selKw.size.toLocaleString()+' selected';
+    const bo=document.getElementById('bulkOwner'); const cur=bo.value; bo.innerHTML=OWNERS.map(o=>`<option>${esc(o)}</option>`).join(''); if(cur)bo.value=cur; }
+  else bar.style.display='none';
+}
 function kwFiltered(){
   const q=document.getElementById('kwSearch').value.toLowerCase();
   const ow=document.getElementById('kwOwner').value;
@@ -247,14 +271,17 @@ function renderKw(){
   const rows=kwFiltered(); const pages=Math.max(1,Math.ceil(rows.length/PER));
   if(kwPage>=pages)kwPage=0;
   const slice=rows.slice(kwPage*PER,kwPage*PER+PER);
-  let h='<tr><th>Keyword</th><th>Owner</th><th class="num">Searches</th><th>Latest rank</th><th></th></tr>';
+  let h='<tr><th style="width:26px"><input type="checkbox" id="selPage"></th><th>Keyword</th><th>Owner</th><th class="num">Searches</th><th>Latest rank</th><th></th></tr>';
   const li=DATES.length-1;
   slice.forEach(k=>{const r=parseRanks(k.ranks,DATES.length); const lr=r[li]; const name=k.name||k.kw;
-    h+=`<tr${k.deleted?' style="opacity:.5"':''}><td>${esc(name)}${k.deleted?' <span class="muted">(deleted)</span>':''}</td><td>${esc(k.owner)}</td><td class="num">${k.searches==null?'':Number(k.searches).toLocaleString()}</td><td>${lr===''||lr==null?'<span class="muted">-</span>':esc(lr)}</td>
+    h+=`<tr${k.deleted?' style="opacity:.5"':''}><td><input type="checkbox" class="rowsel" data-kw="${esc(k.kw)}" ${selKw.has(k.kw)?'checked':''}></td><td>${esc(name)}${k.deleted?' <span class="muted">(deleted)</span>':''}</td><td>${esc(k.owner)}</td><td class="num">${k.searches==null?'':Number(k.searches).toLocaleString()}</td><td>${lr===''||lr==null?'<span class="muted">-</span>':esc(lr)}</td>
       <td class="num act">${k.deleted?`<button class="iconbtn" data-rst="${esc(k.kw)}">Restore</button>`:`<button class="iconbtn" data-edit="${esc(k.kw)}">Edit</button><button class="iconbtn del" data-del="${esc(k.kw)}">Delete</button>`}</td></tr>`;});
   const t=document.getElementById('kwTable'); t.innerHTML=h;
   document.getElementById('kwCount').textContent=rows.length.toLocaleString()+' keywords';
   document.getElementById('kwPage').textContent='Page '+(kwPage+1)+' of '+pages;
+  const sp=document.getElementById('selPage'); if(sp)sp.onclick=()=>{slice.forEach(k=>{sp.checked?selKw.add(k.kw):selKw.delete(k.kw);}); renderKw();};
+  t.querySelectorAll('.rowsel').forEach(cb=>cb.onchange=()=>{cb.checked?selKw.add(cb.dataset.kw):selKw.delete(cb.dataset.kw); updateBulkBar();});
+  updateBulkBar();
   t.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openKw(b.dataset.edit));
   t.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>delKw(b.dataset.del));
   t.querySelectorAll('[data-rst]').forEach(b=>b.onclick=()=>rstKw(b.dataset.rst));
@@ -262,6 +289,25 @@ function renderKw(){
 ['kwSearch','kwOwner','kwShow'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{kwPage=0;renderKw();}));
 document.getElementById('kwPrev').onclick=()=>{if(kwPage>0){kwPage--;renderKw();}};
 document.getElementById('kwNext').onclick=()=>{kwPage++;renderKw();};
+document.getElementById('selAll').onclick=()=>{kwFiltered().forEach(k=>selKw.add(k.kw)); renderKw();};
+document.getElementById('bulkClear').onclick=()=>{selKw.clear(); renderKw();};
+document.getElementById('bulkMoveBtn').onclick=async()=>{
+  if(!selKw.size)return; const owner=document.getElementById('bulkOwner').value;
+  if(!confirm('Move '+selKw.size+' keyword(s) to "'+owner+'"?'))return;
+  const kws=[...selKw]; const now=new Date().toISOString(); const btn=document.getElementById('bulkMoveBtn'); btn.disabled=true;
+  for(let i=0;i<kws.length;i+=500){const c=kws.slice(i,i+500); const {error}=await sb.from('keywords').update({owner,updated_by:USER.email,updated_at:now}).in('kw',c); if(error){alert(error.message);btn.disabled=false;return;}}
+  kws.forEach(kw=>{const k=KW.find(x=>x.kw===kw); if(k)k.owner=owner;});
+  if(!OWNERS.includes(owner)){OWNERS.push(owner);OWNERS.sort();}
+  await logAct('bulk-move',kws.length+' keywords -> '+owner);
+  selKw.clear(); btn.disabled=false; renderKw();
+};
+document.getElementById('bulkDelBtn').onclick=async()=>{
+  if(!selKw.size)return; if(!confirm('Delete '+selKw.size+' keyword(s)? You can restore from "Deleted only".'))return;
+  const kws=[...selKw]; const now=new Date().toISOString();
+  for(let i=0;i<kws.length;i+=500){const c=kws.slice(i,i+500); const {error}=await sb.from('keywords').update({deleted:true,updated_by:USER.email,updated_at:now}).in('kw',c); if(error){alert(error.message);return;}}
+  kws.forEach(kw=>{const k=KW.find(x=>x.kw===kw); if(k)k.deleted=true;});
+  await logAct('bulk-delete',kws.length+' keywords'); selKw.clear(); renderKw();
+};
 
 // ---------- Keyword edit/add modal ----------
 let editKey=null;
@@ -437,6 +483,28 @@ document.getElementById('enAnalyze').onclick=async()=>{
     if(error){p.textContent='Error: '+error.message;document.getElementById('enApply').disabled=false;return;}
     await logAct('upload','enquiries ('+enParsed.total+' rows)'); p.textContent='Done! Saved.';
   };
+};
+// ---------- Bulk add keywords ----------
+document.getElementById('addAnalyze').onclick=async()=>{
+  const f=document.getElementById('addFile').files[0]; const out=document.getElementById('addResult');
+  if(!f){out.innerHTML='<div class="statline" style="color:var(--red)">Choose a file.</div>';return;}
+  out.innerHTML='<div class="statline">Reading...</div>';
+  const buf=await f.arrayBuffer(); const wb=XLSX.read(buf,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]];
+  const rows=XLSX.utils.sheet_to_json(ws,{defval:''}); const hk=Object.keys(rows[0]||{});
+  const find=n=>hk.find(h=>n.some(x=>h.toLowerCase().trim()===x));
+  const cK=find(['keyword','keywords']), cO=find(['owner','tags','tag']), cU=find(['url','url found']), cS=find(['searches','# of searches']);
+  if(!cK||!cO){out.innerHTML='<div class="statline" style="color:var(--red)">Need Keyword and Owner columns. Headers: '+esc(hk.join(', '))+'</div>';return;}
+  const known=new Set(KW.map(k=>k.kw)); const toAdd=[]; let skip=0;
+  rows.forEach(r=>{const k=String(r[cK]||'').trim(); if(!k)return; if(known.has(k)){skip++;return;}
+    toAdd.push({kw:k,owner:String(r[cO]||'').trim()||null,url:cU?(String(r[cU]||'').trim()||null):null,searches:cS?(r[cS]===''||isNaN(+r[cS])?null:+r[cS]):null}); known.add(k);});
+  out.innerHTML=`<div class="statline"><b>${toAdd.length.toLocaleString()}</b> new keywords to add (${skip.toLocaleString()} already exist, skipped).</div>${toAdd.length?'<button class="btn green" id="addApply">Add to database</button> <span id="addProg" class="muted"></span>':''}`;
+  if(toAdd.length){ document.getElementById('addApply').onclick=async()=>{
+    document.getElementById('addApply').disabled=true; const p=document.getElementById('addProg');
+    const blank=DATES.map(()=>'').join(','); const now=new Date().toISOString();
+    const out2=toAdd.map(a=>({kw:a.kw,name:null,owner:a.owner,searches:a.searches,url:a.url,ranks:blank,deleted:false,updated_by:USER.email,updated_at:now}));
+    let done=0; for(let i=0;i<out2.length;i+=500){const c=out2.slice(i,i+500); const {error}=await sb.from('keywords').upsert(c); if(error){p.textContent='Error: '+error.message;document.getElementById('addApply').disabled=false;return;} done+=c.length; p.textContent=done+' / '+out2.length+'...';}
+    await logAct('bulk-add',toAdd.length+' keywords'); p.textContent='Done! Reloading...'; setTimeout(()=>location.reload(),800);
+  };}
 };
 // ---------- tabs ----------
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{
