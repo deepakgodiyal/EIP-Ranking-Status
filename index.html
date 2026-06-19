@@ -647,8 +647,14 @@ function plotKw(item){
 kwq.oninput=()=>{
   const q=kwq.value.toLowerCase().trim();
   if(q.length<2){sugg.style.display='none';return;}
-  const m=D.kw.filter(k=>String(k.kw).toLowerCase().includes(q)).slice(0,12);
-  sugg.innerHTML=m.map((k,i)=>`<div data-i="${D.kw.indexOf(k)}">${k.kw} <span class="muted">&middot; ${k.grp}</span></div>`).join('');
+  const nm=k=>String(dispName(k)).toLowerCase();
+  let m=D.kw.filter(k=>!k._del && (nm(k).includes(q) || String(k.kw).toLowerCase().includes(q)));
+  // best match first: exact -> starts-with -> shortest name -> alphabetical
+  m.sort((a,b)=>{const na=nm(a),nb=nm(b);
+    const sa=(na===q?0:na.startsWith(q)?1:2), sb=(nb===q?0:nb.startsWith(q)?1:2);
+    if(sa!==sb)return sa-sb; if(na.length!==nb.length)return na.length-nb.length; return na<nb?-1:1;});
+  m=m.slice(0,40);
+  sugg.innerHTML=m.map(k=>`<div data-i="${D.kw.indexOf(k)}">${escH(dispName(k))} <span class="muted">&middot; ${escH(k.grp)}</span></div>`).join('');
   sugg.style.display=m.length?'block':'none';
 };
 sugg.onclick=e=>{const d=e.target.closest('div[data-i]');if(!d)return;
