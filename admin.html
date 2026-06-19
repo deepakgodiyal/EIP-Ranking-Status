@@ -3,7 +3,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>EMR Ranking — Admin Panel</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
 :root{color-scheme:light;--navy:#102a4c;--accent:#2f7de1;--bg:#f4f6fa;--card:#fff;--green:#15915b;--red:#d24343;--gray:#7a869a;--line:#e7ebf2;}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -183,7 +183,7 @@ tr:hover td{background:#f7f9fc}
         <div class="desc">Download a full backup of everything (keywords, ranks, enquiries, comments). Keep it safe &mdash; restore anytime if something goes wrong. Recommended: download weekly.</div>
         <button class="btn primary" id="backupBtn">&#11015; Full backup (.json)</button>
         <button class="btn green" id="backupXlsx">&#11015; Full backup (Excel)</button> <span id="backupProg" class="muted"></span>
-        <div class="desc" style="margin-top:6px">.json = one-click restore (below). Excel = human-readable, open in Excel.</div>
+        <div class="desc" style="margin-top:6px">.json = one-click restore (below). Excel = 6 sheets (Summary, Band Trend, Keywords, By Owner, Enquiries, Comments) with color-coded ranks &mdash; like your tracker.</div>
         <div style="margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
           <div class="desc">Restore from a backup file (brings back the values from that backup &mdash; admin only):</div>
           <input type="file" id="rstFile" accept=".json"> <button class="btn ghost" id="restoreBtn">Restore</button> <span id="rstProg" class="muted"></span>
@@ -532,17 +532,84 @@ document.getElementById('backupBtn').onclick=async()=>{
   pr.textContent='Downloaded \u2713';
 };
 document.getElementById('backupXlsx').onclick=async()=>{
-  const pr=document.getElementById('backupProg'); pr.textContent='Building Excel...';
-  let enq=null; try{const {data}=await sb.from('meta').select('value').eq('key','enquiries').single(); enq=data&&data.value;}catch(e){}
-  const wb=XLSX.utils.book_new();
-  const kwAoa=[['Keyword','Display name','Owner','Searches','URL',...DATES,'Deleted']];
-  KW.forEach(k=>{const r=parseRanks(k.ranks,DATES.length); kwAoa.push([k.kw,k.name||'',k.owner||'',k.searches==null?'':k.searches,k.url||'',...r,k.deleted?'YES':'']);});
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(kwAoa), 'Keywords');
-  const cAoa=[['Keyword','Comment']]; Object.entries(COMMENTS).forEach(([kw,c])=>{if(c)cAoa.push([kw,c]);});
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cAoa), 'Comments');
-  if(enq&&enq.kw){ const eAoa=[['Date','Keywords']]; Object.entries(enq.kw).forEach(([kw,rec])=>{(rec.d||[]).forEach(d=>eAoa.push([d,kw]));}); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(eAoa), 'Enquiries'); }
-  XLSX.writeFile(wb, 'emr-ranking-backup-'+new Date().toISOString().slice(0,10)+'.xlsx');
-  pr.textContent='Excel downloaded!';
+// ===== Full Excel backup: multi-sheet, color-coded (tracker-style view) =====
+const pr=document.getElementById('backupProg'); pr.textContent='Building Excel... (thoda time lagega)';
+await new Promise(r=>setTimeout(r,30));
+let enq=null; try{const {data}=await sb.from('meta').select('value').eq('key','enquiries').single(); enq=data&&data.value;}catch(e){}
+const enqKw=(enq&&enq.kw)||{};
+const enqCount=kw=>((enqKw[kw]&&enqKw[kw].d)||[]).length;
+const active=KW.filter(k=>!k.deleted);
+const ND=DATES.length, lastIdx=ND-1;
+const bandOf=v=>{const t=String(v==null?'':v).trim(); if(t===''||t==='-')return 'nr'; const n=parseInt(t,10); if(!isFinite(n))return 'nr'; if(n<=3)return 't3'; if(n<=10)return 't10'; if(n<=30)return 't30'; if(n<=50)return 't50'; return 'nr';};
+const bd=()=>{const s={style:'thin',color:{rgb:'D9D9D9'}};return{top:s,bottom:s,left:s,right:s};};
+const HDR={fill:{fgColor:{rgb:'1F3864'}},font:{bold:true,color:{rgb:'FFFFFF'},sz:11},alignment:{horizontal:'center',vertical:'center',wrapText:true},border:bd()};
+const TITLE={font:{bold:true,sz:14,color:{rgb:'1F3864'}}};
+const CEN={alignment:{horizontal:'center'},border:bd()};
+const TOTC={font:{bold:true},alignment:{horizontal:'center'},border:bd()};
+const BAND={t3:{fill:{fgColor:{rgb:'C6EFCE'}},font:{color:{rgb:'006100'},bold:true},alignment:{horizontal:'center'},border:bd()},
+            t10:{fill:{fgColor:{rgb:'D9EAD3'}},alignment:{horizontal:'center'},border:bd()},
+            t30:{fill:{fgColor:{rgb:'FFEB9C'}},alignment:{horizontal:'center'},border:bd()},
+            t50:{fill:{fgColor:{rgb:'FCE4D6'}},alignment:{horizontal:'center'},border:bd()},
+            nr:{fill:{fgColor:{rgb:'F2F2F2'}},font:{color:{rgb:'BBBBBB'}},alignment:{horizontal:'center'},border:bd()}};
+const wb=XLSX.utils.book_new(), enc=XLSX.utils.encode_cell;
+const setHdr=(ws,row,ncol)=>{for(let c=0;c<ncol;c++){const a=enc({r:row,c});if(ws[a])ws[a].s=HDR;}};
+const bandCounts=rows=>{const o={t3:0,t10:0,t30:0,t50:0,nr:0};rows.forEach(k=>{o[bandOf(parseRanks(k.ranks,ND)[lastIdx])]++;});return o;};
+
+// Sheet 1: Summary
+const sumHead=['Owner','Top 1-3','4-10','11-30','Not Ranked','Total','% in Top 10'];
+const sumAoa=[['Ranking Summary — '+(DATES[lastIdx]||'')],[],sumHead];
+const rowFor=(label,rows)=>{const o=bandCounts(rows),tot=rows.length;const p=tot?(((o.t3+o.t10)/tot)*100).toFixed(1)+'%':'0%';return [label,o.t3,o.t10,o.t30+o.t50,o.nr,tot,p];};
+sumAoa.push(rowFor('All keywords',active));
+OWNERS.forEach(ow=>sumAoa.push(rowFor(ow,active.filter(k=>k.owner===ow))));
+const ws1=XLSX.utils.aoa_to_sheet(sumAoa);
+ws1['!cols']=[{wch:22},{wch:10},{wch:8},{wch:9},{wch:12},{wch:9},{wch:12}];
+if(ws1['A1'])ws1['A1'].s=TITLE; setHdr(ws1,2,sumHead.length);
+for(let r=3;r<sumAoa.length;r++){[BAND.t3,BAND.t10,BAND.t30,BAND.nr].forEach((st,i)=>{const a=enc({r,c:i+1});if(ws1[a])ws1[a].s=st;});const ta=enc({r,c:5});if(ws1[ta])ws1[ta].s=TOTC;const pa=enc({r,c:6});if(ws1[pa])ws1[pa].s=CEN;}
+XLSX.utils.book_append_sheet(wb,ws1,'Summary');
+
+// Sheet 2: Band Trend
+const trHead=['Date','Top 1-3','4-10','11-30','Not Ranked','Total Tracked'];
+const trAoa=[['Ranking Bands — Trend Over Time'],[],trHead];
+for(let d=0;d<ND;d++){const o={t3:0,t10:0,t30:0,t50:0,nr:0};active.forEach(k=>{o[bandOf(parseRanks(k.ranks,ND)[d])]++;});trAoa.push([DATES[d],o.t3,o.t10,o.t30+o.t50,o.nr,active.length]);}
+const ws2=XLSX.utils.aoa_to_sheet(trAoa);
+ws2['!cols']=[{wch:12},{wch:10},{wch:8},{wch:9},{wch:12},{wch:14}];
+if(ws2['A1'])ws2['A1'].s=TITLE; setHdr(ws2,2,trHead.length);
+for(let r=3;r<trAoa.length;r++){[BAND.t3,BAND.t10,BAND.t30,BAND.nr].forEach((st,i)=>{const a=enc({r,c:i+1});if(ws2[a])ws2[a].s=st;});const ta=enc({r,c:5});if(ws2[ta])ws2[ta].s=TOTC;}
+XLSX.utils.book_append_sheet(wb,ws2,'Band Trend');
+
+// Sheet 3: Keywords drilldown (color-coded ranks)
+const kHead=['Keyword','Owner','Searches','Enquiries','URL',...DATES];
+const kAoa=[kHead];
+active.forEach(k=>{const r=parseRanks(k.ranks,ND);kAoa.push([k.name||k.kw,k.owner||'',k.searches==null?'':k.searches,enqCount(k.kw),k.url||'',...r.map(v=>{const t=String(v==null?'':v).trim();const n=parseInt(t,10);return isFinite(n)?n:(t==='-'?'-':'');})]);});
+const ws3=XLSX.utils.aoa_to_sheet(kAoa);
+ws3['!cols']=[{wch:34},{wch:12},{wch:9},{wch:10},{wch:30},...DATES.map(()=>({wch:7}))];
+ws3['!freeze']={xSplit:'1',ySplit:'1',topLeftCell:'B2',activePane:'bottomRight',state:'frozen'};
+setHdr(ws3,0,kHead.length);
+for(let r=1;r<kAoa.length;r++){const rr=parseRanks(active[r-1].ranks,ND);for(let d=0;d<ND;d++){const a=enc({r,c:5+d});if(ws3[a])ws3[a].s=BAND[bandOf(rr[d])];}}
+XLSX.utils.book_append_sheet(wb,ws3,'Keywords');
+
+// Sheet 4: By Owner
+const oHead=['Owner','# Keywords','Total Searches','Total Enquiries','In Top 10 (latest)'];
+const oAoa=[['Performance by Owner'],[],oHead];
+OWNERS.forEach(ow=>{const rows=active.filter(k=>k.owner===ow);const o=bandCounts(rows);oAoa.push([ow,rows.length,rows.reduce((s,k)=>s+(+k.searches||0),0),rows.reduce((s,k)=>s+enqCount(k.kw),0),o.t3+o.t10]);});
+const ws4=XLSX.utils.aoa_to_sheet(oAoa);
+ws4['!cols']=[{wch:20},{wch:12},{wch:15},{wch:16},{wch:18}];
+if(ws4['A1'])ws4['A1'].s=TITLE; setHdr(ws4,2,oHead.length);
+XLSX.utils.book_append_sheet(wb,ws4,'By Owner');
+
+// Sheet 5: Enquiries log
+const eAoa=[['Date','Keyword']];
+Object.entries(enqKw).forEach(([kw,rec])=>{(rec.d||[]).forEach(d=>eAoa.push([d,kw]));});
+const ws5=XLSX.utils.aoa_to_sheet(eAoa);ws5['!cols']=[{wch:12},{wch:40}];setHdr(ws5,0,2);
+XLSX.utils.book_append_sheet(wb,ws5,'Enquiries');
+
+// Sheet 6: Comments
+const cAoa=[['Keyword','Comment']];Object.entries(COMMENTS).forEach(([kw,c])=>{if(c)cAoa.push([kw,c]);});
+const ws6=XLSX.utils.aoa_to_sheet(cAoa);ws6['!cols']=[{wch:34},{wch:60}];setHdr(ws6,0,2);
+XLSX.utils.book_append_sheet(wb,ws6,'Comments');
+
+XLSX.writeFile(wb,'emr-ranking-backup-'+new Date().toISOString().slice(0,10)+'.xlsx');
+pr.textContent='Excel downloaded!';
 };
 document.getElementById('restoreBtn').onclick=async()=>{
   if(ROLE!=='admin'){alert('Only an Admin can restore a backup.');return;}
