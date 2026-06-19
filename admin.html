@@ -531,6 +531,19 @@ document.getElementById('backupBtn').onclick=async()=>{
   document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},100);
   pr.textContent='Downloaded \u2713';
 };
+document.getElementById('backupXlsx').onclick=async()=>{
+  const pr=document.getElementById('backupProg'); pr.textContent='Building Excel...';
+  let enq=null; try{const {data}=await sb.from('meta').select('value').eq('key','enquiries').single(); enq=data&&data.value;}catch(e){}
+  const wb=XLSX.utils.book_new();
+  const kwAoa=[['Keyword','Display name','Owner','Searches','URL',...DATES,'Deleted']];
+  KW.forEach(k=>{const r=parseRanks(k.ranks,DATES.length); kwAoa.push([k.kw,k.name||'',k.owner||'',k.searches==null?'':k.searches,k.url||'',...r,k.deleted?'YES':'']);});
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(kwAoa), 'Keywords');
+  const cAoa=[['Keyword','Comment']]; Object.entries(COMMENTS).forEach(([kw,c])=>{if(c)cAoa.push([kw,c]);});
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cAoa), 'Comments');
+  if(enq&&enq.kw){ const eAoa=[['Date','Keywords']]; Object.entries(enq.kw).forEach(([kw,rec])=>{(rec.d||[]).forEach(d=>eAoa.push([d,kw]));}); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(eAoa), 'Enquiries'); }
+  XLSX.writeFile(wb, 'emr-ranking-backup-'+new Date().toISOString().slice(0,10)+'.xlsx');
+  pr.textContent='Excel downloaded!';
+};
 document.getElementById('restoreBtn').onclick=async()=>{
   if(ROLE!=='admin'){alert('Only an Admin can restore a backup.');return;}
   const f=document.getElementById('rstFile').files[0]; const p=document.getElementById('rstProg');
