@@ -181,7 +181,9 @@ tr:hover td{background:#f7f9fc}
       <div class="card">
         <h2>Backup &amp; Restore</h2>
         <div class="desc">Download a full backup of everything (keywords, ranks, enquiries, comments). Keep it safe &mdash; restore anytime if something goes wrong. Recommended: download weekly.</div>
-        <button class="btn primary" id="backupBtn">&#11015; Download full backup</button> <span id="backupProg" class="muted"></span>
+        <button class="btn primary" id="backupBtn">&#11015; Full backup (.json)</button>
+        <button class="btn green" id="backupXlsx">&#11015; Full backup (Excel)</button> <span id="backupProg" class="muted"></span>
+        <div class="desc" style="margin-top:6px">.json = one-click restore (below). Excel = human-readable, open in Excel.</div>
         <div style="margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
           <div class="desc">Restore from a backup file (brings back the values from that backup &mdash; admin only):</div>
           <input type="file" id="rstFile" accept=".json"> <button class="btn ghost" id="restoreBtn">Restore</button> <span id="rstProg" class="muted"></span>
