@@ -199,12 +199,12 @@ tr:hover td{background:#f7f9fc}
 <div class="modal" id="kwModal"><div class="mcard">
   <div class="mhead"><h3 id="kwmTitle">Edit keyword</h3><button id="kwmClose">&times;</button></div>
   <div id="kwmMeta" class="muted" style="font-size:12px;margin-bottom:6px"></div>
-  <div class="full"><label>Keyword (edit this to rename it everywhere) <input type="text" id="f_kw"></label></div>
+  <div class="full"><label>Keyword (edit this to rename it everywhere) <input type="text" id="f_kw" autocomplete="off" name="kwfield_nofill"></label></div>
   <div class="fgrid">
-    <label>Display name (blank = same as keyword) <input type="text" id="f_name"></label>
-    <label>Owner <select id="f_owner"></select></label>
-    <label>Searches / month <input type="number" id="f_searches"></label>
-    <label>Ranking URL <input type="text" id="f_url"></label>
+    <label>Display name (blank = same as keyword) <input type="text" id="f_name" autocomplete="off" name="namefield_nofill"></label>
+    <label>Owner <select id="f_owner" autocomplete="off" name="ownerfield_nofill"></select></label>
+    <label>Searches / month <input type="number" id="f_searches" autocomplete="off" name="srchfield_nofill"></label>
+    <label>Ranking URL <input type="text" id="f_url" autocomplete="off" name="urlfield_nofill"></label>
   </div>
   <div class="muted" style="font-size:12px;margin-bottom:4px">Rank on each date (number, "-" = not in top 30, blank = not tracked):</div>
   <div class="rgrid" id="f_ranks"></div>
@@ -324,7 +324,13 @@ document.getElementById('bulkDelBtn').onclick=async()=>{
 };
 
 // ---------- Keyword edit/add modal ----------
-let editKey=null;
+let editKey=null; let _ownerLock='';
+// Owner must only change when the user picks it in the dropdown — never from
+// editing the keyword/name/url (defeats browser autofill silently changing it).
+document.getElementById('f_owner').addEventListener('change',()=>{_ownerLock=document.getElementById('f_owner').value;});
+['f_kw','f_name','f_url','f_searches'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{
+  const o=document.getElementById('f_owner'); if(o.value!==_ownerLock)o.value=_ownerLock;
+}));
 function openModal(){document.getElementById('kwModal').classList.add('open');}
 function closeModal(){document.getElementById('kwModal').classList.remove('open');}
 function fillRanks(r){document.getElementById('f_ranks').innerHTML=DATES.map((d,i)=>`<div class="erw"><label>${esc(d)}</label><input data-d="${i}" value="${esc((r&&r[i])||'')}"></div>`).join('');}
@@ -334,7 +340,7 @@ function openKw(kw){
   document.getElementById('kwmMeta').textContent=k.updated_by?('Last edited by '+k.updated_by+(k.updated_at?(' · '+new Date(k.updated_at).toLocaleString()):'')):'';
   document.getElementById('f_kw').value=k.kw; document.getElementById('f_kw').disabled=false;
   document.getElementById('f_name').value=k.name||'';
-  document.getElementById('f_owner').value=k.owner||'';
+  document.getElementById('f_owner').value=k.owner||''; _ownerLock=k.owner||'';
   document.getElementById('f_searches').value=k.searches==null?'':k.searches;
   document.getElementById('f_url').value=k.url||'';
   fillRanks(parseRanks(k.ranks,DATES.length));
@@ -344,7 +350,7 @@ function openKw(kw){
 document.getElementById('kwAdd').onclick=()=>{
   editKey=null; document.getElementById('kwmTitle').textContent='Add keyword'; document.getElementById('kwmMeta').textContent='';
   document.getElementById('f_kw').value=''; document.getElementById('f_kw').disabled=false;
-  document.getElementById('f_name').value=''; document.getElementById('f_owner').value=OWNERS[0]||'';
+  document.getElementById('f_name').value=''; document.getElementById('f_owner').value=OWNERS[0]||''; _ownerLock=OWNERS[0]||'';
   document.getElementById('f_searches').value=''; document.getElementById('f_url').value='';
   fillRanks(DATES.map(()=>'')); document.getElementById('f_comment').value=''; openModal();
 };
@@ -652,17 +658,9 @@ document.getElementById('restoreBtn').onclick=async()=>{
   let done=0;
   for(let i=0;i<b.keywords.length;i+=500){const c=b.keywords.slice(i,i+500); const {error}=await sb.from('keywords').upsert(c); if(error){p.textContent='Error (keywords): '+error.message;document.getElementById('restoreBtn').disabled=false;return;} done+=c.length; p.textContent='Keywords '+done+'/'+b.keywords.length+'...';}
   if(b.meta){ if(b.meta.dates)await sb.from('meta').upsert({key:'dates',value:b.meta.dates,updated_at:now}); if(b.meta.people)await sb.from('meta').upsert({key:'people',value:b.meta.people,updated_at:now}); if(b.meta.enquiries)await sb.from('meta').upsert({key:'enquiries',value:b.meta.enquiries,updated_at:now}); }
-  if(Array.isArray(b.comments)&&b.comments.length){ for(let i=0;i<b.comments.length;i+=500){const c=b.comments.slice(i,i+500).map(x=>({kw:x.kw,comment:x.comment||null,updated_by:USER.email,updated_at:now})); await sb.from('comments').upsert(c);} }
+  if(Array.isArray(b.comments)&&b.comments.length){ for(let i=0;i<b.comments.length;i+=500){const c=b.comments.slice(i,i+500).map(x=>({kw:x.kw,comment:x.comment||null,updated_by:USER.email,updated_at:now})); const {error}=await sb.from('comments').upsert(c); if(error){p.textContent='Error (comments): '+error.message;document.getElementById('restoreBtn').disabled=false;return;}} }
   await logAct('restore','backup from '+(b.at||'?')); p.textContent='Restored! Reloading...'; setTimeout(()=>location.reload(),900);
 };
-// ---------- tabs ----------
-document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{
-  document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.remove('active'));
-  document.querySelectorAll('.sec').forEach(x=>x.classList.remove('active'));
-  b.classList.add('active'); document.getElementById('sec-'+b.dataset.t).classList.add('active');
-  if(b.dataset.t==='users')loadUsers(); if(b.dataset.t==='activity')loadActivity();
-});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 boot();
-</script>
-</body></html>
+</script></body></html>
