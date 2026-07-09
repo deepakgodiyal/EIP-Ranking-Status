@@ -177,6 +177,16 @@ tr:hover td{background:#f7f9fc}
         <div id="setDates"></div>
       </div>
       <div class="card">
+        <h2>Enquiries date range (card override)</h2>
+        <div class="desc">The Enquiries tab shows this date range. It auto-fills from your enquiries data &mdash; but you can override the start/end dates here <b>without re-uploading</b> the whole sheet.</div>
+        <div class="statline" id="rgCurrent"></div>
+        <div class="toolbar">
+          <label class="muted" style="font-size:12.5px">Start&nbsp;<input type="date" id="rgStart"></label>
+          <label class="muted" style="font-size:12.5px">End (latest)&nbsp;<input type="date" id="rgEnd"></label>
+          <button class="btn primary" id="rgSave">Save date range</button> <span id="rgProg" class="muted"></span>
+        </div>
+      </div>
+      <div class="card">
         <h2>Undo last upload</h2>
         <div class="desc">Removes the most recent date from every keyword (use if an upload went wrong).</div>
         <button class="btn ghost" id="rmLast">Remove last date</button> <span id="rmProg" class="muted"></span>
@@ -411,7 +421,31 @@ async function loadActivity(){
 function renderSettings(){
   document.getElementById('setStats').innerHTML='<span class="kpi"><b>'+KW.filter(k=>!k.deleted).length.toLocaleString()+'</b> active keywords</span><span class="kpi"><b>'+DATES.length+'</b> dates</span>';
   document.getElementById('setDates').innerHTML=DATES.map(d=>`<span class="kpi">${esc(d)}</span>`).join('');
+  loadEnqRange();
 }
+async function loadEnqRange(){
+  const cur=document.getElementById('rgCurrent'); if(!cur)return;
+  try{ const {data}=await sb.from('meta').select('value').eq('key','enquiries').single();
+    const r=data&&data.value&&data.value.range;
+    if(r&&r[0]){ document.getElementById('rgStart').value=r[0]||''; document.getElementById('rgEnd').value=r[1]||''; cur.innerHTML='Showing on site: <b>'+esc(r[0]||'?')+'</b> to <b>'+esc(r[1]||'?')+'</b>'; }
+    else cur.textContent='No enquiries data yet \u2014 upload an enquiries sheet first.'; }
+  catch(e){ cur.textContent=''; }
+}
+document.getElementById('rgSave').onclick=async()=>{
+  const s=document.getElementById('rgStart').value, e=document.getElementById('rgEnd').value; const pr=document.getElementById('rgProg');
+  if(!s||!e){pr.textContent='Enter both dates.';return;}
+  if(s>e){pr.textContent='Start date must be on or before end date.';return;}
+  pr.textContent='Saving...';
+  const {data}=await sb.from('meta').select('value').eq('key','enquiries').single();
+  if(!data||!data.value){pr.textContent='No enquiries data to update \u2014 upload an enquiries sheet first.';return;}
+  const val=data.value; val.range=[s,e];
+  const {error}=await sb.from('meta').upsert({key:'enquiries',value:val,updated_at:new Date().toISOString()});
+  if(error){pr.textContent='Error: '+error.message;return;}
+  await logAct('edit','enquiries date range -> '+s+' to '+e);
+  document.getElementById('rgCurrent').innerHTML='Showing on site: <b>'+esc(s)+'</b> to <b>'+esc(e)+'</b>';
+  pr.textContent='Saved! Live on the site now.';
+};
+
 
 // ---------- Download sample format templates ----------
 function dlSample(fname,aoa,widths){
