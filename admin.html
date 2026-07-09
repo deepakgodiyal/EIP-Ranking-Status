@@ -125,6 +125,7 @@ tr:hover td{background:#f7f9fc}
           <label class="muted" style="font-size:12.5px">Date label &nbsp;<input type="text" id="upDate" placeholder="e.g. 18 Jun" style="width:130px"></label>
           <input type="file" id="upFile" accept=".xlsx,.xls">
           <button class="btn primary" id="upAnalyze">Analyze</button>
+          <button class="btn ghost" id="upSample" title="Download a sample Excel in the exact format">&#11015; Sample format</button>
         </div>
         <div id="upResult"></div>
       </div>
@@ -135,6 +136,7 @@ tr:hover td{background:#f7f9fc}
         <div class="toolbar">
           <input type="file" id="enFile" accept=".xlsx,.xls">
           <button class="btn primary" id="enAnalyze">Analyze</button>
+          <button class="btn ghost" id="enSample" title="Download a sample Excel in the exact format">&#11015; Sample format</button>
         </div>
         <div id="enResult"></div>
       </div>
@@ -145,6 +147,7 @@ tr:hover td{background:#f7f9fc}
         <div class="toolbar">
           <input type="file" id="addFile" accept=".xlsx,.xls">
           <button class="btn primary" id="addAnalyze">Analyze</button>
+          <button class="btn ghost" id="addSample" title="Download a sample Excel in the exact format">&#11015; Sample format</button>
         </div>
         <div id="addResult"></div>
       </div>
@@ -403,6 +406,33 @@ function renderSettings(){
   document.getElementById('setStats').innerHTML='<span class="kpi"><b>'+KW.filter(k=>!k.deleted).length.toLocaleString()+'</b> active keywords</span><span class="kpi"><b>'+DATES.length+'</b> dates</span>';
   document.getElementById('setDates').innerHTML=DATES.map(d=>`<span class="kpi">${esc(d)}</span>`).join('');
 }
+
+// ---------- Download sample format templates ----------
+function dlSample(fname,aoa,widths){
+  const wb=XLSX.utils.book_new(); const ws=XLSX.utils.aoa_to_sheet(aoa);
+  const HDR={fill:{fgColor:{rgb:'1F3864'}},font:{bold:true,color:{rgb:'FFFFFF'}},alignment:{horizontal:'center'}};
+  for(let c=0;c<aoa[0].length;c++){const a=XLSX.utils.encode_cell({r:0,c}); if(ws[a])ws[a].s=HDR;}
+  if(widths)ws['!cols']=widths.map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,ws,'Sample');
+  XLSX.writeFile(wb,fname);
+}
+document.getElementById('upSample').onclick=()=>dlSample('sample-ranking-sheet.xlsx',[
+  ['Keyword','# of Searches','Rank','URL Found','Tags'],
+  ['construction market',8100,3,'https://www.expertmarketresearch.com/reports/construction-market','Harsh'],
+  ['steel market',5400,12,'https://www.expertmarketresearch.com/reports/steel-market','Gagan'],
+  ['solar energy market',2900,'Not in top 30','','Dubey']
+],[34,14,14,54,12]);
+document.getElementById('enSample').onclick=()=>dlSample('sample-enquiries-sheet.xlsx',[
+  ['Date','Keywords'],
+  ['2026-06-15','construction market'],
+  ['2026-06-15','steel market'],
+  ['2026-06-16','construction market']
+],[14,42]);
+document.getElementById('addSample').onclick=()=>dlSample('sample-bulk-keywords.xlsx',[
+  ['Keyword','Owner','URL','Searches'],
+  ['green hydrogen market','Harsh','https://www.expertmarketresearch.com/reports/green-hydrogen-market',1600],
+  ['lithium battery market','Gagan','',3200]
+],[34,14,54,12]);
 
 // ---------- Upload ranking sheet ----------
 let upParsed=null;
