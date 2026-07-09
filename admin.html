@@ -661,6 +661,16 @@ document.getElementById('restoreBtn').onclick=async()=>{
   if(Array.isArray(b.comments)&&b.comments.length){ for(let i=0;i<b.comments.length;i+=500){const c=b.comments.slice(i,i+500).map(x=>({kw:x.kw,comment:x.comment||null,updated_by:USER.email,updated_at:now})); const {error}=await sb.from('comments').upsert(c); if(error){p.textContent='Error (comments): '+error.message;document.getElementById('restoreBtn').disabled=false;return;}} }
   await logAct('restore','backup from '+(b.at||'?')); p.textContent='Restored! Reloading...'; setTimeout(()=>location.reload(),900);
 };
+// ---------- Tab switching ----------
+document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.sec').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  const sec=document.getElementById('sec-'+b.dataset.t); if(sec)sec.classList.add('active');
+  if(b.dataset.t==='users')loadUsers();
+  else if(b.dataset.t==='activity')loadActivity();
+  else if(b.dataset.t==='settings')renderSettings();
+});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 boot();
 </script></body></html>
