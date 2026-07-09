@@ -230,6 +230,8 @@ let USER=null, ROLE='viewer', KW=[], DATES=[], OWNERS=[], COMMENTS={};
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 function joinRanks(r){return r.map(v=>v==null?'':(v===''?'':v)).join(',');}
 function parseRanks(s,n){const a=String(s||'').split(',').map(x=>{x=x.trim();return x;}); while(a.length<n)a.push(''); return a.slice(0,n);}
+const _MONS3=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtDMY(iso){const m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})/); if(!m)return iso||'?'; return m[3]+' '+_MONS3[+m[2]-1]+' '+m[1];}
 async function logAct(action,detail){try{await sb.from('activity').insert({who:USER&&USER.email,action,detail});}catch(e){}}
 
 // ---------- auth ----------
@@ -562,7 +564,7 @@ document.getElementById('enAnalyze').onclick=async()=>{
   const matchedKw=Object.values(kwAgg).filter(a=>a.m).length;
   const bo={}; Object.entries(byOwner).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>bo[k]=v);
   enParsed={total,matchedKw,distinctKw:Object.keys(kwAgg).length,range:[minD,maxD],byOwner:bo,kw:kwAgg};
-  out.innerHTML=`<div class="statline">Parsed <b>${total.toLocaleString()}</b> enquiries &mdash; ${Object.keys(kwAgg).length.toLocaleString()} keywords (${matchedKw.toLocaleString()} in tracker), dates ${esc(minD||'?')} to ${esc(maxD||'?')}.</div>
+  out.innerHTML=`<div class="statline">Parsed <b>${total.toLocaleString()}</b> enquiries &mdash; ${Object.keys(kwAgg).length.toLocaleString()} keywords (${matchedKw.toLocaleString()} in tracker), dates ${fmtDMY(minD)} to ${fmtDMY(maxD)}.</div>
     <div class="note">This will <b>replace</b> all enquiries data on the public site.</div>
     <button class="btn green" id="enApply">Apply to database</button> <span id="enProg" class="muted"></span>`;
   document.getElementById('enApply').onclick=async()=>{
