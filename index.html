@@ -1459,10 +1459,11 @@ function applyRole(){
 let pollStarted=false;
 async function afterLogin(user){
   USER=user;
-  let st='approved';
-  try{const {data}=await sb.from('profiles').select('role,status').eq('id',user.id).single();ROLE=(data&&data.role)||'viewer';st=(data&&data.status)||'approved';}catch(e){ROLE='viewer';}
+  let st='none', prof=null;
+  try{const {data}=await sb.from('profiles').select('role,status').eq('id',user.id).maybeSingle();prof=data;}catch(e){}
+  if(prof){ROLE=prof.role||'viewer';st=prof.status||'approved';}else{ROLE='viewer';st='none';}
   if(st!=='approved'){ document.body.dataset.role='viewer'; const ab=document.getElementById('authBar'); if(ab)ab.style.display='none';
-    const msg=document.getElementById('authPendingMsg'); if(msg)msg.textContent=(st==='rejected')?'Your account request was declined. Please contact an admin.':"Your account is awaiting admin approval. You'll be able to sign in once an admin approves you.";
+    const msg=document.getElementById('authPendingMsg'); if(msg)msg.textContent=(st==='pending')?"Your account is awaiting admin approval. You'll be able to sign in once an admin approves you.":'Your account is not authorized. Please contact an admin.';
     showGate(); authShow('authPendingBox'); return; }
   hideGate(); const b=document.getElementById('authBar'); if(b)b.style.display='flex'; applyRole();
   await clogLoad();

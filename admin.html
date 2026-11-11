@@ -223,7 +223,7 @@ th{color:var(--gray)}
     <div class="sec" id="sec-users">
       <div class="card">
         <h2>User access</h2>
-        <div class="desc">New people create an account on the sign-in page. <b>Approve</b> or <b>Reject</b> them here, choose their access (Viewer / Editor / Admin), and set a display name (shown on their comments). To fully remove a login, use Supabase &rarr; Authentication.</div>
+        <div class="desc">New people create an account on the sign-in page. <b>Approve</b> or <b>Reject</b> them here, choose their access (Viewer / Editor / Admin), and set a display name (shown on their comments). <b>Delete</b> removes a user from the app; to also free up their email, delete them in Supabase &rarr; Authentication.</div>
         <table id="usersTable"></table>
       </div>
     </div>
@@ -507,6 +507,7 @@ async function loadUsers(){
       ${st!=='approved'?`<button class="btn green sm uapprove" data-id="${u.id}">Approve</button>`:''}
       ${st==='pending'?`<button class="btn sm ureject" data-id="${u.id}" style="background:#fbeaea;color:var(--red)">Reject</button>`:''}
       ${st==='approved'?`<button class="btn ghost sm ureset" data-email="${esc(u.email||'')}">Send reset link</button>`:''}
+      ${u.id!==(USER&&USER.id)?`<button class="btn sm udelete" data-id="${u.id}" data-email="${esc(u.email||'')}" style="background:#fbeaea;color:var(--red)">Delete</button>`:''}
     </div></td></tr>`;});
   t.innerHTML=h;
   if(ROLE!=='admin')return;
@@ -516,6 +517,7 @@ async function loadUsers(){
   t.querySelectorAll('button.uapprove').forEach(b=>b.onclick=()=>{const sel=b.closest('tr').querySelector('select.urole');upd(b.dataset.id,{status:'approved',role:sel?sel.value:'viewer'},'approved '+b.dataset.id);});
   t.querySelectorAll('button.ureject').forEach(b=>b.onclick=()=>{if(confirm('Reject this user? They will not be able to access the site.'))upd(b.dataset.id,{status:'rejected'},'rejected '+b.dataset.id);});
   t.querySelectorAll('button.ureset').forEach(b=>b.onclick=async()=>{const em=b.dataset.email;if(!em)return;if(!confirm('Send a password-reset link to '+em+'?'))return;const {error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:location.origin+'/index.html'});if(error)alert(error.message);else{b.textContent='Sent ✓';b.disabled=true;logAct('reset-link',em);}});
+  t.querySelectorAll('button.udelete').forEach(b=>b.onclick=async()=>{if(!confirm('Remove '+(b.dataset.email||'this user')+' from the app? They will lose access.\n\nTo also free up their email, delete them in Supabase → Authentication.'))return;const {error}=await sb.from('profiles').delete().eq('id',b.dataset.id);if(error)alert('Delete failed: '+error.message);else{logAct('delete-user',b.dataset.email);loadUsers();}});
 }
 
 // ---------- Activity ----------
