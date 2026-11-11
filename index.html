@@ -841,10 +841,15 @@ function filteredKw(){
   const minEnq=parseInt(document.getElementById('minEnq').value);
   const onlyCmt=document.getElementById('hasCmt').checked;
   const di=selDate();
+  // split the selected chips into two facets: owners and report types.
+  // within a facet = OR; across facets = AND (so Gagan + Patent Landscape = Gagan's Patent Landscape keywords).
+  const _selOwn=new Set(), _selType=new Set();
+  selectedGroups.forEach(x=>{ if(PEOPLE.indexOf(x)>=0)_selOwn.add(x); else if(RTYPES.indexOf(x)>=0)_selType.add(x); });
   let rows=D.kw.filter(k=>{
     if(k._del) return false;
     if(q && !String(dispName(k)).toLowerCase().includes(q) && !String(k.kw).toLowerCase().includes(q)) return false;
-    if(selectedGroups.size && !(selectedGroups.has(k.grp)||selectedGroups.has(k.rtype))) return false;
+    if(_selOwn.size && !_selOwn.has(k.grp)) return false;
+    if(_selType.size && !_selType.has(k.rtype)) return false;
     if(mv && moveAt(k,di)!==mv) return false;
     const L=rankAt(k,di);
     if(!passBand(L,band)) return false;
