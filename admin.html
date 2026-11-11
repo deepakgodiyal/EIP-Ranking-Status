@@ -379,7 +379,7 @@ function renderKw(){
   const li=DATES.length-1;
   slice.forEach(k=>{const r=parseRanks(k.ranks,DATES.length); const lr=r[li]; const name=k.name||k.kw;
     h+=`<tr${k.deleted?' style="opacity:.5"':''}><td><input type="checkbox" class="rowsel" data-kw="${esc(k.kw)}" ${selKw.has(k.kw)?'checked':''}></td><td class="muted">${esc(k.report_id==null?'':String(k.report_id))}</td><td>${esc(name)}${k.deleted?' <span class="muted">(deleted)</span>':''}</td><td>${esc(k.report_type||'')}</td><td>${esc(k.owner)}</td><td class="num">${k.searches==null?'':Number(k.searches).toLocaleString()}</td><td>${lr===''||lr==null?'<span class="muted">-</span>':esc(lr)}</td>
-      <td class="num act">${k.deleted?`<button class="iconbtn" data-rst="${esc(k.kw)}">Restore</button>`:`<button class="iconbtn" data-edit="${esc(k.kw)}">Edit</button><button class="iconbtn del" data-del="${esc(k.kw)}">Delete</button>`}</td></tr>`;});
+      <td class="num act">${k.deleted?(ROLE==='admin'?`<button class="iconbtn" data-rst="${esc(k.kw)}">Restore</button>`:'<span class="muted">deleted</span>'):`<button class="iconbtn" data-edit="${esc(k.kw)}">Edit</button><button class="iconbtn del" data-del="${esc(k.kw)}">Delete</button>`}</td></tr>`;});
   const t=document.getElementById('kwTable'); t.innerHTML=h;
   document.getElementById('kwCount').textContent=rows.length.toLocaleString()+' keywords';
   document.getElementById('kwPage').textContent='Page '+(kwPage+1)+' of '+pages;

@@ -1454,7 +1454,7 @@ function applyRole(){
   document.body.dataset.role=ROLE;
   const who=document.getElementById('authWho'); if(who)who.innerHTML=(USER?USER.email:'')+' <span class="rolebadge">'+ROLE+'</span>';
   const ub=document.getElementById('authUsersBtn'); if(ub)ub.style.display=(ROLE==='admin')?'block':'none';
-  const dbn=document.getElementById('delBtn'); if(dbn)dbn.style.display=(ROLE==='admin'||ROLE==='editor')?'block':'none';
+  const dbn=document.getElementById('delBtn'); if(dbn)dbn.style.display=(ROLE==='admin')?'block':'none';  // restore = admin only
 }
 let pollStarted=false;
 async function afterLogin(user){
