@@ -206,6 +206,15 @@ html[data-design="semrush"] .c-new,html[data-design="semrush"] .tagP{background:
 html[data-design="semrush"] .ms-panel label:hover{background:#fff2ec}
 html[data-design="semrush"] .verstoggle,html[data-design="semrush"] .tab.active,html[data-design="semrush"] .exportbtn{box-shadow:0 4px 12px rgba(232,67,28,.25)}
 html[data-design="semrush"] ::-webkit-scrollbar-thumb{background:#f0c3b0}
+/* ---- Classic (navy/blue) theme — SAME layout, classic colors ---- */
+html[data-design="classic"]{ --brand:#2f7de1; --brand-d:#1f6ad0; --navy:#102a4c; --bg:#f5f7fa; }
+html[data-design="classic"] .hstat{background:linear-gradient(135deg,#eef4fc,#f1f6fd);border-color:#dce7f5}
+html[data-design="classic"] .sumrow td{border-top-color:#2f7de1;background:#eef4fc}
+html[data-design="classic"] tbody tr:hover td{background:#f4f8fd}
+html[data-design="classic"] .histtbl tr:hover .c0,html[data-design="classic"] .histtbl tr:hover .cID,html[data-design="classic"] .histtbl tr:hover .cRT,html[data-design="classic"] .histtbl tr:hover .c1,html[data-design="classic"] .histtbl tr:hover .c2,html[data-design="classic"] .histtbl tr:hover .c3,html[data-design="classic"] .histtbl tr:hover .cEnq,html[data-design="classic"] .histtbl tr:hover .c4{background:#f4f8fd}
+html[data-design="classic"] .c-new,html[data-design="classic"] .tagP{background:#e7f0fb;color:#2f7de1}
+html[data-design="classic"] .ms-panel label:hover{background:#eef4fc}
+html[data-design="classic"] ::-webkit-scrollbar-thumb{background:#c3d3e8}
 .tabs{display:inline-flex;gap:4px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:5px;box-shadow:0 3px 12px rgba(44,22,96,.05)}
 .tab{background:transparent;color:var(--gray);border-radius:999px;padding:9px 20px;font-weight:700}
 .tab.active{background:linear-gradient(90deg,var(--brand),var(--brand-d));color:#fff;box-shadow:0 4px 12px rgba(73,1,253,.28)}
@@ -1443,17 +1452,17 @@ document.getElementById('toTop').onclick=()=>window.scrollTo({top:0,behavior:'sm
 document.getElementById('toBottom').onclick=()=>window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
 </script>
 <script>
-/* ===== 3-way design toggle: EMR -> SEMrush -> Classic ===== */
+/* ===== 3-way design toggle (in-page, no navigation): EMR -> SEMrush -> Classic ===== */
 (function(){
-  var LABELS={emr:'EMR',semrush:'SEMrush'};
-  function apply(d){ if(d!=='emr'&&d!=='semrush')d='emr'; document.documentElement.setAttribute('data-design',d); var l=document.getElementById('designLabel'); if(l)l.textContent=LABELS[d]; try{localStorage.setItem('emr_design',d);}catch(e){} }
+  var ORDER=['emr','semrush','classic'];
+  var LABELS={emr:'EMR',semrush:'SEMrush',classic:'Classic'};
+  function apply(d){ if(ORDER.indexOf(d)<0)d='emr'; document.documentElement.setAttribute('data-design',d); var l=document.getElementById('designLabel'); if(l)l.textContent=LABELS[d]; try{localStorage.setItem('emr_design',d);}catch(e){} }
   var pref='emr'; try{pref=localStorage.getItem('emr_design')||'emr';}catch(e){}
   apply(pref);
   var btn=document.getElementById('designToggle');
   if(btn)btn.addEventListener('click',function(){
-    var cur=document.documentElement.getAttribute('data-design');
-    if(cur==='emr'){ apply('semrush'); }
-    else { try{localStorage.setItem('emr_design','classic');}catch(e){} location.href='classic.html'; }
+    var i=ORDER.indexOf(document.documentElement.getAttribute('data-design')); if(i<0)i=0;
+    apply(ORDER[(i+1)%ORDER.length]);
   });
 })();
 </script>

@@ -95,6 +95,14 @@ html[data-design="semrush"] .kpi b,html[data-design="semrush"] header.top a.view
 html[data-design="semrush"] .note{background:#fff2ec}
 html[data-design="semrush"] tr:hover td{background:#fff7f3}
 html[data-design="semrush"] ::-webkit-scrollbar-thumb{background:#f0c3b0}
+/* ---- Classic (navy/blue) theme — admin ---- */
+html[data-design="classic"]{ --brand:#2f7de1; --brand-d:#1f6ad0; --accent:#2f7de1; --navy:#102a4c; }
+html[data-design="classic"] #login{background:linear-gradient(135deg,#0f2748,#2f7de1)}
+html[data-design="classic"] .btn.ghost{background:#eef4fc;color:#2f7de1}
+html[data-design="classic"] .note{background:#eef4fc}
+html[data-design="classic"] .kpi{background:#eef4fc}
+html[data-design="classic"] tr:hover td{background:#f4f8fd}
+html[data-design="classic"] ::-webkit-scrollbar-thumb{background:#c3d3e8}
 .rolebadge{background:var(--brand)}
 nav.tabs{background:#fff;border-bottom:1px solid var(--line)}
 nav.tabs button.active{color:var(--brand);border-bottom-color:var(--brand)}
@@ -848,17 +856,17 @@ document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 boot();
-/* ===== 3-way design toggle: EMR -> SEMrush -> Classic ===== */
+/* ===== 3-way design toggle (in-page, no navigation): EMR -> SEMrush -> Classic ===== */
 (function(){
-  var LABELS={emr:'EMR',semrush:'SEMrush'};
-  function apply(d){ if(d!=='emr'&&d!=='semrush')d='emr'; document.documentElement.setAttribute('data-design',d); var l=document.getElementById('designLabel'); if(l)l.textContent=LABELS[d]; try{localStorage.setItem('emr_design',d);}catch(e){} }
+  var ORDER=['emr','semrush','classic'];
+  var LABELS={emr:'EMR',semrush:'SEMrush',classic:'Classic'};
+  function apply(d){ if(ORDER.indexOf(d)<0)d='emr'; document.documentElement.setAttribute('data-design',d); var l=document.getElementById('designLabel'); if(l)l.textContent=LABELS[d]; try{localStorage.setItem('emr_design',d);}catch(e){} }
   var pref='emr'; try{pref=localStorage.getItem('emr_design')||'emr';}catch(e){}
   apply(pref);
   var btn=document.getElementById('designToggle');
   if(btn)btn.addEventListener('click',function(){
-    var cur=document.documentElement.getAttribute('data-design');
-    if(cur==='emr'){ apply('semrush'); }
-    else { try{localStorage.setItem('emr_design','classic');}catch(e){} location.href='admin-classic.html'; }
+    var i=ORDER.indexOf(document.documentElement.getAttribute('data-design')); if(i<0)i=0;
+    apply(ORDER[(i+1)%ORDER.length]);
   });
 })();
 </script></body></html>
