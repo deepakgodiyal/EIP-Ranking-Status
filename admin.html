@@ -83,7 +83,17 @@ header.top .brand{display:flex;align-items:center;gap:11px;color:var(--navy);fon
 .brandlogo{height:30px;width:auto;display:block}
 header.top .right{color:var(--gray)}
 header.top a.view{color:var(--brand);font-weight:600}
-.verstoggle{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;background:linear-gradient(90deg,var(--brand),var(--brand-d));color:#fff !important;font-weight:700;font-size:12px;text-decoration:none;box-shadow:0 4px 12px rgba(73,1,253,.25);white-space:nowrap}
+.verstoggle{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border:none;cursor:pointer;font-family:inherit;border-radius:999px;background:linear-gradient(90deg,var(--brand),var(--brand-d));color:#fff !important;font-weight:700;font-size:12px;text-decoration:none;box-shadow:0 4px 12px rgba(73,1,253,.25);white-space:nowrap}
+/* ---- SEMrush (orange) theme — admin ---- */
+html[data-design="semrush"]{ --brand:#ff642f; --brand-d:#e8431c; --accent:#ff642f; }
+html[data-design="semrush"] nav.tabs button.active{color:#e8431c;border-bottom-color:#ff642f}
+html[data-design="semrush"] .rolebadge{background:#ff642f}
+html[data-design="semrush"] .btn.ghost{background:#fff0ea;color:#e8431c}
+html[data-design="semrush"] #login{background:linear-gradient(135deg,#7a2a10,#ff642f)}
+html[data-design="semrush"] .kpi b,html[data-design="semrush"] header.top a.view{color:#e8431c}
+html[data-design="semrush"] .note{background:#fff2ec}
+html[data-design="semrush"] tr:hover td{background:#fff7f3}
+html[data-design="semrush"] ::-webkit-scrollbar-thumb{background:#f0c3b0}
 .rolebadge{background:var(--brand)}
 nav.tabs{background:#fff;border-bottom:1px solid var(--line)}
 nav.tabs button.active{color:var(--brand);border-bottom-color:var(--brand)}
@@ -116,7 +126,7 @@ th{color:var(--gray)}
 <div id="app">
   <header class="top">
     <div class="brand"><img src="emr-logo.svg" alt="EMR" class="brandlogo"> <span>EMR Ranking &middot; Admin</span></div>
-    <div class="right"><a class="verstoggle" href="admin-classic.html" title="Switch to the classic admin">&#8634; Classic admin</a><a class="view" href="index.html" target="_blank">View site &#8599;</a><span id="who"></span><button id="logout">Logout</button></div>
+    <div class="right"><button type="button" class="verstoggle" id="designToggle" title="Switch view: EMR &rarr; SEMrush &rarr; Classic">&#127912; <span id="designLabel">EMR</span> &#8635;</button><a class="view" href="index.html" target="_blank">View site &#8599;</a><span id="who"></span><button id="logout">Logout</button></div>
   </header>
   <nav class="tabs">
     <button data-t="keywords" class="active">Keywords</button>
@@ -837,4 +847,17 @@ document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 boot();
+/* ===== 3-way design toggle: EMR -> SEMrush -> Classic ===== */
+(function(){
+  var LABELS={emr:'EMR',semrush:'SEMrush'};
+  function apply(d){ if(d!=='emr'&&d!=='semrush')d='emr'; document.documentElement.setAttribute('data-design',d); var l=document.getElementById('designLabel'); if(l)l.textContent=LABELS[d]; try{localStorage.setItem('emr_design',d);}catch(e){} }
+  var pref='emr'; try{pref=localStorage.getItem('emr_design')||'emr';}catch(e){}
+  apply(pref);
+  var btn=document.getElementById('designToggle');
+  if(btn)btn.addEventListener('click',function(){
+    var cur=document.documentElement.getAttribute('data-design');
+    if(cur==='emr'){ apply('semrush'); }
+    else { try{localStorage.setItem('emr_design','classic');}catch(e){} location.href='admin-classic.html'; }
+  });
+})();
 </script></body></html>

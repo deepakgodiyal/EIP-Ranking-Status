@@ -82,7 +82,7 @@ tr:hover td{background:#f7f9fc}
 <div id="app">
   <header class="top">
     <div class="brand">EMR RANKING · ADMIN <span style="font-size:10px;font-weight:700;background:rgba(255,255,255,.18);padding:2px 8px;border-radius:20px;margin-left:4px">Classic</span></div>
-    <div class="right"><a href="admin.html" style="background:#fff;color:#4901fd;padding:6px 13px;border-radius:999px;font-weight:700;font-size:12px;text-decoration:none">&#10024; New admin</a><a class="view" href="index.html" target="_blank">View site &#8599;</a><span id="who"></span><button id="logout">Logout</button></div>
+    <div class="right"><a href="admin.html" onclick="try{localStorage.setItem('emr_design','emr')}catch(e){}" title="Switch view: Classic &rarr; EMR &rarr; SEMrush" style="background:#fff;color:#4901fd;padding:6px 13px;border-radius:999px;font-weight:700;font-size:12px;text-decoration:none">&#127912; Classic &#8635;</a><a class="view" href="index.html" target="_blank">View site &#8599;</a><span id="who"></span><button id="logout">Logout</button></div>
   </header>
   <nav class="tabs">
     <button data-t="keywords" class="active">Keywords</button>
