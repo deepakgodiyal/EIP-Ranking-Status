@@ -1455,13 +1455,17 @@ async function afterLogin(user){
 function wireAuthUI(){
   const err=document.getElementById('authErr');
   const si=document.getElementById('authSignin'); if(!si)return;
-  si.onclick=async()=>{err.textContent='';if(!sb){err.textContent='Login works on the hosted site.';return;}
-    const {error}=await sb.auth.signInWithPassword({email:document.getElementById('authEmail').value.trim(),password:document.getElementById('authPass').value});
+  si.onclick=async()=>{err.textContent='';err.style.color='var(--red)';if(!sb){err.textContent='Login works on the hosted site.';return;}
+    const em=document.getElementById('authEmail').value.trim(), pw=document.getElementById('authPass').value;
+    if(!em||!pw){err.textContent='Email aur password dono daalo.';return;}
+    const {error}=await sb.auth.signInWithPassword({email:em,password:pw});
     if(error)err.textContent=error.message;};
   document.getElementById('authSignup').onclick=async()=>{err.textContent='';if(!sb)return;
-    const {error}=await sb.auth.signUp({email:document.getElementById('authEmail').value.trim(),password:document.getElementById('authPass').value});
+    const em=document.getElementById('authEmail').value.trim(), pw=document.getElementById('authPass').value;
+    if(!em||!pw){err.style.color='var(--red)';err.textContent='Account banane ke liye email aur password dono daalo (password min 6 chars).';return;}
+    const {error}=await sb.auth.signUp({email:em,password:pw});
     err.style.color=error?'var(--red)':'var(--green)';
-    err.textContent=error?error.message:'Account created. If it does not sign you in, ask your admin to enable access.';};
+    err.textContent=error?error.message:'Account ban gaya! Agar login na kare to admin se access maango.';};
   const fp=document.getElementById('authForgot'); if(fp)fp.onclick=async(ev)=>{ev.preventDefault();if(!sb)return;
     const em=document.getElementById('authEmail').value.trim();
     if(!em){err.style.color='var(--red)';err.textContent='Pehle upar apna email daalo, phir Forgot password dabao.';return;}
