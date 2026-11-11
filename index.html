@@ -183,7 +183,7 @@ h4.sec{font-size:13px;color:var(--navy);margin:4px 0 8px}
 .selkw{font-weight:700;color:var(--navy);margin:6px 0 4px;font-size:14px}
 /* ========== v2 — EMR modern redesign (brand palette + SEMrush-style polish) ========== */
 :root{
-  --navy:#1e1550; --blue:#6d3bf5; --bg:#f4f4fb; --line:#ece9f6; --gray:#8a89a6;
+  --navy:#1e1550; --blue:var(--brand); --bg:#f4f4fb; --line:#ece9f6; --gray:#8a89a6;
   --greenbg:#e7f7ee; --redbg:#fdecec; --brand:#6d3bf5; --brand-d:#4901fd;
   --lime:#87c71f; --purple:#7951bd; --teal:#2bb6ac; --yellow:#eab308;
 }
@@ -465,6 +465,7 @@ let TYPES = Object.keys(G).filter(k=>!G[k].isPerson);
 let RTYPES = [];           // distinct report types (new dimension)
 let GRT = {};              // report-type -> {series} for the Report Types summary/bands
 const COL=['#2f7de1','#e0a82e','#7b5cd6','#15915b','#d24343','#1f9d6b','#e8731a','#5c6bc0','#26a69a','#ec407a','#8d6e63','#789262','#5d4037'];
+function brandColor(){try{return getComputedStyle(document.documentElement).getPropertyValue('--brand').trim()||'#2f7de1';}catch(e){return '#2f7de1';}}
 let curIdx = DATES.length-1;
 
 // ================= Annotations (keyword edits + comments) =================
@@ -723,10 +724,11 @@ let kwChart;
 function plotKw(item){
   document.getElementById('selkw').textContent=item.kw+'  ('+item.grp+(item.searches!=null?', '+item.searches.toLocaleString()+' searches/mo':'')+')';
   const data=item.r.map(v=>(typeof v==='number')?v:null);
+  const bc=brandColor();
   if(kwChart)kwChart.destroy();
   kwChart=new Chart(document.getElementById('kwChart'),{type:'line',
-    data:{labels:DATES,datasets:[{label:'Google rank',data:data,borderColor:'#2f7de1',
-      backgroundColor:'rgba(47,125,225,.12)',borderWidth:3,tension:.3,pointRadius:4,spanGaps:true,fill:true}]},
+    data:{labels:DATES,datasets:[{label:'Google rank',data:data,borderColor:bc,
+      backgroundColor:bc+'22',borderWidth:3,tension:.3,pointRadius:4,spanGaps:true,fill:true}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
       tooltip:{callbacks:{label:c=>c.parsed.y==null?'not ranked':'Rank '+c.parsed.y}}},
       scales:{y:{reverse:true,min:1,title:{display:true,text:'Google rank (1 = best, top)'},grid:{color:'#eef1f6'}},
@@ -1207,7 +1209,7 @@ function plotEnq(kw){
   const counts=monthlyCounts(dts);
   if(enqChartObj)enqChartObj.destroy();
   enqChartObj=new Chart(document.getElementById('enqChart'),{type:'bar',
-    data:{labels:ENQM.map(mlabel),datasets:[{label:'Enquiries',data:counts,backgroundColor:'#2f7de1',borderRadius:3}]},
+    data:{labels:ENQM.map(mlabel),datasets:[{label:'Enquiries',data:counts,backgroundColor:brandColor(),borderRadius:3}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+' enquiries'}}},
       scales:{y:{beginAtZero:true,ticks:{precision:0},grid:{color:'#eef1f6'}},x:{grid:{display:false},ticks:{autoSkip:true,maxTicksLimit:16}}}}});
   const byd={};dts.forEach(d=>byd[d]=(byd[d]||0)+1);
