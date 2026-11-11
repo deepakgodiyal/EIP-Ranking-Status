@@ -160,16 +160,17 @@ h4.sec{font-size:13px;color:var(--navy);margin:4px 0 8px}
 .syncbadge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700;margin-left:6px}
 .sync-local{background:#fdf3e3;color:#b9821f}.sync-shared{background:#e8f6ee;color:#15915b}
 /* frozen left columns: Keyword..first date */
-.histtbl .c0,.histtbl .cRT,.histtbl .c1,.histtbl .c2,.histtbl .c3,.histtbl .cEnq,.histtbl .c4{position:sticky;background:#fff;z-index:2}
-.histtbl thead .c0,.histtbl tr:first-child .c0,.histtbl th.c0,.histtbl th.cRT,.histtbl th.c1,.histtbl th.c2,.histtbl th.c3,.histtbl th.cEnq,.histtbl th.c4{z-index:4;background:#fff}
+.histtbl .c0,.histtbl .cID,.histtbl .cRT,.histtbl .c1,.histtbl .c2,.histtbl .c3,.histtbl .cEnq,.histtbl .c4{position:sticky;background:#fff;z-index:2}
+.histtbl thead .c0,.histtbl tr:first-child .c0,.histtbl th.c0,.histtbl th.cID,.histtbl th.cRT,.histtbl th.c1,.histtbl th.c2,.histtbl th.c3,.histtbl th.cEnq,.histtbl th.c4{z-index:4;background:#fff}
 .histtbl .c0{left:0;width:220px;min-width:220px;max-width:220px;white-space:normal}
-.histtbl .cRT{left:220px;width:130px;min-width:130px;max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;color:#51607a}
-.histtbl .c1{left:350px;width:92px;min-width:92px;max-width:92px;white-space:nowrap;overflow:hidden}
-.histtbl .c2{left:442px;width:96px;min-width:96px;max-width:96px;white-space:nowrap;overflow:hidden}
-.histtbl .c3{left:538px;width:44px;min-width:44px;max-width:44px}
-.histtbl .cEnq{left:582px;width:58px;min-width:58px;max-width:58px;white-space:nowrap;overflow:hidden}
-.histtbl .c4{left:640px;width:58px;min-width:58px;max-width:58px;box-shadow:3px 0 5px -2px rgba(0,0,0,.18)}
-.histtbl tr:hover .c0,.histtbl tr:hover .cRT,.histtbl tr:hover .c1,.histtbl tr:hover .c2,.histtbl tr:hover .c3,.histtbl tr:hover .cEnq,.histtbl tr:hover .c4{background:#f7f9fc}
+.histtbl .cID{left:220px;width:64px;min-width:64px;max-width:64px;white-space:nowrap;overflow:hidden;font-size:12px;color:#51607a;text-align:right;font-variant-numeric:tabular-nums}
+.histtbl .cRT{left:284px;width:130px;min-width:130px;max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;color:#51607a}
+.histtbl .c1{left:414px;width:92px;min-width:92px;max-width:92px;white-space:nowrap;overflow:hidden}
+.histtbl .c2{left:506px;width:96px;min-width:96px;max-width:96px;white-space:nowrap;overflow:hidden}
+.histtbl .c3{left:602px;width:44px;min-width:44px;max-width:44px}
+.histtbl .cEnq{left:646px;width:58px;min-width:58px;max-width:58px;white-space:nowrap;overflow:hidden}
+.histtbl .c4{left:704px;width:58px;min-width:58px;max-width:58px;box-shadow:3px 0 5px -2px rgba(0,0,0,.18)}
+.histtbl tr:hover .c0,.histtbl tr:hover .cID,.histtbl tr:hover .cRT,.histtbl tr:hover .c1,.histtbl tr:hover .c2,.histtbl tr:hover .c3,.histtbl tr:hover .cEnq,.histtbl tr:hover .c4{background:#f7f9fc}
 .r3{background:#d8f0e2;font-weight:700}.r10{background:#eaf7ef}.r30{background:#fdf4e0}
 .kwq-box{position:relative;max-width:430px}
 .sugg{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #cdd6e4;border-radius:8px;max-height:240px;overflow-y:auto;z-index:20;box-shadow:0 6px 18px rgba(20,40,80,.12);display:none}
@@ -198,6 +199,7 @@ h4.sec{font-size:13px;color:var(--navy);margin:4px 0 8px}
 <div id="editModal"><div class="umcard" style="width:620px">
   <div class="umhead"><b id="editTitle"></b> <button id="editClose">&times;</button></div>
   <div id="editMeta" class="umdesc"></div>
+  <div id="edReportId" class="umdesc" style="margin-bottom:6px"></div>
   <div class="editgrid">
     <label>Keyword name <input type="text" id="edName"></label>
     <label>Report Type <select id="edReport"></select></label>
@@ -471,7 +473,7 @@ async function loadFromDB(){
   let metaMap={};
   try{const {data:meta}=await sb.from('meta').select('key,value'); (meta||[]).forEach(x=>metaMap[x.key]=x.value);}catch(e){}
   let all=[],from=0,page=1000;
-  try{ while(true){ const {data,error}=await sb.from('keywords').select('kw,name,owner,report_type,searches,url,ranks,deleted,updated_by,updated_at').range(from,from+page-1);
+  try{ while(true){ const {data,error}=await sb.from('keywords').select('kw,name,owner,report_type,report_id,searches,url,ranks,deleted,updated_by,updated_at').range(from,from+page-1);
         if(error){console.warn('kw load',error);return false;} all=all.concat(data||[]); if(!data||data.length<page)break; from+=page; if(from>60000)break; }
   }catch(e){console.warn(e);return false;}
   if(!all.length) return false;
@@ -481,7 +483,7 @@ async function loadFromDB(){
     const dfl=document.getElementById('dateFilter'); if(dfl){dfl.innerHTML=D.dates.map((d,i)=>`<option value="${i}">${d}${i===D.dates.length-1?' (latest)':''}</option>`).join(''); dfl.value=D.dates.length-1;}
   }
   const dn=D.dates.length;
-  D.kw = all.map((row,i)=>({kw:row.kw, grp:row.owner||'', rtype:(row.report_type||''), searches:(row.searches==null?null:row.searches), url:row.url||null, r:parseRanks(row.ranks,dn), _i:i, _del:!!row.deleted, dbname:(row.name||''), dbby:row.updated_by||null, dbat:row.updated_at||null}));
+  D.kw = all.map((row,i)=>({kw:row.kw, grp:row.owner||'', rtype:(row.report_type||''), rid:(row.report_id==null?'':String(row.report_id)), searches:(row.searches==null?null:row.searches), url:row.url||null, r:parseRanks(row.ranks,dn), _i:i, _del:!!row.deleted, dbname:(row.name||''), dbby:row.updated_by||null, dbat:row.updated_at||null}));
   DBMODE=true; rebuildDerived();
   buildGrpPanel(); updateGrpBtn(); buildBandPanel(); updateBandBtn();
   return true;
@@ -783,6 +785,7 @@ function filteredKw(){
     const {key,dir}=hdrSort;
     const val=(k)=>{
       if(key==='kw') return String(dispName(k)).toLowerCase();
+      if(key==='rid') return (k.rid===''||k.rid==null)?null:(isNaN(+k.rid)?String(k.rid):+k.rid);
       if(key==='rtype') return String(k.rtype||'').toLowerCase();
       if(key==='owner') return String(k.grp).toLowerCase();
       if(key==='searches') return (k.searches==null)?null:k.searches;
@@ -837,6 +840,7 @@ function headHTML(){
   const sar=key=>hdrSort&&hdrSort.key===key?(hdrSort.dir>0?' <span class="sarr">&#9650;</span>':' <span class="sarr">&#9660;</span>'):'';
   return '<tr>'
     +`<th class="c0 sortable" data-sort="kw">Keyword${sar('kw')}</th>`
+    +`<th class="cID sortable" data-sort="rid" title="Report ID (fixed)">ID${sar('rid')}</th>`
     +`<th class="cRT sortable" data-sort="rtype">Report Type${sar('rtype')}</th>`
     +`<th class="c1 sortable" data-sort="owner">Owner${sar('owner')}</th>`
     +`<th class="num c2 sortable" data-sort="searches">Searches${sar('searches')}</th>`
@@ -854,7 +858,7 @@ function rowHTML(k){
   const dcells=k.r.map((v,i)=>cellRank(v,i===0?'c4':'')).join('');
   const cmt=hasComment(k);
   const kwc=`<div class="kwcell"><span class="kwtext">${escH(dispName(k))}</span><span class="kwicons"><button class="iconbtn cmtbtn ${cmt?'active':''}" data-i="${k._i}" title="${cmt?'View / edit comment':'Add comment'}">&#128172;</button><button class="iconbtn editvalbtn needEdit" data-i="${k._i}" title="Edit keyword data">&#9998;</button><button class="iconbtn delbtn needEdit" data-i="${k._i}" title="Delete keyword">&#128465;</button></span></div>`;
-  return `<tr class="${cmt?'has-comment':''}"><td class="c0">${kwc}</td><td class="cRT" title="${escH(k.rtype||'')}">${escH(k.rtype||'')}</td><td class="c1" title="${escH(k.grp||'')}">${escH(k.grp||'')}</td>${srch}${url}${enqc}${dcells}`+chgCell(k)+'</tr>';
+  return `<tr class="${cmt?'has-comment':''}"><td class="c0">${kwc}</td><td class="cID">${escH(k.rid||'')}</td><td class="cRT" title="${escH(k.rtype||'')}">${escH(k.rtype||'')}</td><td class="c1" title="${escH(k.grp||'')}">${escH(k.grp||'')}</td>${srch}${url}${enqc}${dcells}`+chgCell(k)+'</tr>';
 }
 function appendRows(n){
   const body=document.getElementById('kwBody'); if(!body)return;
@@ -965,9 +969,9 @@ function zipStore(files){
 }
 function exportRows(){
   const rows=filteredKw();
-  const header=['Keyword','Report Type','Owner','# of Searches','URL Found','Enquiries'].concat(DATES).concat(['Change (latest vs prev)','Comment']);
+  const header=['Keyword','Report ID','Report Type','Owner','# of Searches','URL Found','Enquiries'].concat(DATES).concat(['Change (latest vs prev)','Comment']);
   const data=rows.map(k=>{
-    return [dispName(k),(k.rtype||''),k.grp,(k.searches==null?'':k.searches),(k.url||''),enqOf(k)].concat(k.r.map(v=>v==null?'':v)).concat([k.chg==null?'':k.chg, getComment(k)]);
+    return [dispName(k),(k.rid||''),(k.rtype||''),k.grp,(k.searches==null?'':k.searches),(k.url||''),enqOf(k)].concat(k.r.map(v=>v==null?'':v)).concat([k.chg==null?'':k.chg, getComment(k)]);
   });
   return {header,data};
 }
@@ -1055,6 +1059,7 @@ function openEdit(i){
   document.getElementById('edName').value=dispName(k);
   document.getElementById('edOwner').innerHTML=PEOPLE.map(g=>`<option${g===k.grp?' selected':''}>${escH(g)}</option>`).join('');
   document.getElementById('edReport').innerHTML='<option value=""></option>'+RTYPES.map(rt=>`<option${rt===k.rtype?' selected':''}>${escH(rt)}</option>`).join('');
+  document.getElementById('edReportId').innerHTML='Report ID: <b>'+escH(k.rid||'—')+'</b> <span style="color:#9aa5b5">(fixed — not editable)</span>';
   document.getElementById('edSearches').value=(k.searches==null?'':k.searches);
   document.getElementById('edUrl').value=k.url||'';
   document.getElementById('edRanks').innerHTML=D.dates.map((d,di)=>`<div class="erw"><label>${d}</label><input data-d="${di}" value="${rankStr(k.r[di])}"></div>`).join('');
