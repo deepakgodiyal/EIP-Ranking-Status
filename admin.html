@@ -223,7 +223,7 @@ th{color:var(--gray)}
     <div class="sec" id="sec-users">
       <div class="card">
         <h2>User access</h2>
-        <div class="desc">People sign up on the admin login as Viewer; promote them here. (To fully remove a login, use Supabase &rarr; Authentication.)</div>
+        <div class="desc">New people create an account on the sign-in page. <b>Approve</b> or <b>Reject</b> them here, choose their access (Viewer / Editor / Admin), and set a display name (shown on their comments). To fully remove a login, use Supabase &rarr; Authentication.</div>
         <table id="usersTable"></table>
       </div>
     </div>
@@ -492,18 +492,29 @@ async function rstKw(kw){ const {error}=await sb.from('keywords').update({delete
 // ---------- Users ----------
 async function loadUsers(){
   const t=document.getElementById('usersTable'); t.innerHTML='<tr><td>Loading...</td></tr>';
-  const {data,error}=await sb.from('profiles').select('id,email,name,role').order('email');
+  const {data,error}=await sb.from('profiles').select('id,email,name,first_name,last_name,role,status').order('status',{ascending:true}).order('email');
   if(error){t.innerHTML='<tr><td>'+esc(error.message)+'</td></tr>';return;}
   const dis=ROLE==='admin'?'':'disabled';
-  let h='<tr><th>Email</th><th>Name</th><th>Role</th><th>Password</th></tr>';
-  (data||[]).forEach(u=>{h+=`<tr><td>${esc(u.email||u.id)}</td>
-    <td><input type="text" class="uname" data-id="${u.id}" value="${esc(u.name||'')}" placeholder="e.g. Vikas" style="padding:7px 9px;border:1px solid #cdd6e4;border-radius:7px;font-size:13px;width:150px" ${dis}></td>
+  const badge=s=>{s=s||'approved';const c=s==='approved'?'#15915b':(s==='rejected'?'#d24343':'#b9821f');return `<span style="background:${c}22;color:${c};padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;text-transform:capitalize">${esc(s)}</span>`;};
+  let h='<tr><th>Email</th><th>Name</th><th>Role</th><th>Status</th><th>Actions</th></tr>';
+  (data||[]).forEach(u=>{const nm=u.name||[u.first_name,u.last_name].filter(Boolean).join(' ');const st=u.status||'approved';
+    h+=`<tr><td>${esc(u.email||u.id)}</td>
+    <td><input type="text" class="uname" data-id="${u.id}" value="${esc(nm)}" placeholder="e.g. Vikas" style="padding:7px 9px;border:1px solid #cdd6e4;border-radius:7px;font-size:13px;width:135px" ${dis}></td>
     <td><select class="urole" data-id="${u.id}" ${dis}>
       <option value="viewer"${u.role==='viewer'?' selected':''}>Viewer</option><option value="editor"${u.role==='editor'?' selected':''}>Editor</option><option value="admin"${u.role==='admin'?' selected':''}>Admin</option></select></td>
-    <td><button class="btn ghost sm ureset" data-email="${esc(u.email||'')}">Send reset link</button></td></tr>`;});
+    <td>${badge(st)}</td>
+    <td><div class="act" style="display:flex;gap:6px;flex-wrap:wrap">
+      ${st!=='approved'?`<button class="btn green sm uapprove" data-id="${u.id}">Approve</button>`:''}
+      ${st==='pending'?`<button class="btn sm ureject" data-id="${u.id}" style="background:#fbeaea;color:var(--red)">Reject</button>`:''}
+      ${st==='approved'?`<button class="btn ghost sm ureset" data-email="${esc(u.email||'')}">Send reset link</button>`:''}
+    </div></td></tr>`;});
   t.innerHTML=h;
-  t.querySelectorAll('select.urole').forEach(s=>s.onchange=async()=>{const {error}=await sb.from('profiles').update({role:s.value}).eq('id',s.dataset.id);if(error)alert(error.message);else logAct('role','set '+s.dataset.id+' = '+s.value);});
+  if(ROLE!=='admin')return;
+  const upd=async(id,patch,log)=>{const {error}=await sb.from('profiles').update(patch).eq('id',id);if(error){alert('Failed: '+error.message);}else{logAct('user',log);loadUsers();}};
   t.querySelectorAll('input.uname').forEach(inp=>inp.onchange=async()=>{const {error}=await sb.from('profiles').update({name:inp.value.trim()||null}).eq('id',inp.dataset.id);if(error)alert('Save failed: '+error.message);else logAct('name',inp.dataset.id+' = '+inp.value.trim());});
+  t.querySelectorAll('select.urole').forEach(s=>s.onchange=()=>upd(s.dataset.id,{role:s.value},'role '+s.dataset.id+' = '+s.value));
+  t.querySelectorAll('button.uapprove').forEach(b=>b.onclick=()=>{const sel=b.closest('tr').querySelector('select.urole');upd(b.dataset.id,{status:'approved',role:sel?sel.value:'viewer'},'approved '+b.dataset.id);});
+  t.querySelectorAll('button.ureject').forEach(b=>b.onclick=()=>{if(confirm('Reject this user? They will not be able to access the site.'))upd(b.dataset.id,{status:'rejected'},'rejected '+b.dataset.id);});
   t.querySelectorAll('button.ureset').forEach(b=>b.onclick=async()=>{const em=b.dataset.email;if(!em)return;if(!confirm('Send a password-reset link to '+em+'?'))return;const {error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:location.origin+'/index.html'});if(error)alert(error.message);else{b.textContent='Sent ✓';b.disabled=true;logAct('reset-link',em);}});
 }
 

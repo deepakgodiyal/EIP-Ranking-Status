@@ -258,6 +258,7 @@ input[type=text]:focus,input[type=number]:focus,select:focus,.ms-btn:focus{outli
 .authforgot{margin-top:12px;text-align:center}
 .authforgot a{color:var(--brand);font-size:12.5px;font-weight:600;text-decoration:none}
 .authforgot a:hover{text-decoration:underline}
+.namerow{display:flex;gap:8px}.namerow input{flex:1;min-width:0}
 .dashbtn{display:none;margin-left:auto;align-items:center;gap:7px;padding:9px 15px;border-radius:999px;background:#fff;border:1.5px solid var(--brand);color:var(--brand);font-weight:700;font-size:12.5px;text-decoration:none;white-space:nowrap}
 .dashbtn:hover{background:var(--brand);color:#fff}
 body[data-role="editor"] .dashbtn,body[data-role="admin"] .dashbtn{display:inline-flex}
@@ -272,12 +273,25 @@ body[data-role="editor"] .dashbtn,body[data-role="admin"] .dashbtn{display:inlin
     <input type="email" id="authEmail" placeholder="Email" autocomplete="username">
     <input type="password" id="authPass" placeholder="Password" autocomplete="current-password">
     <div id="authErr" class="autherr"></div>
-    <div class="authbtns"><button id="authSignin" class="bsave">Sign in</button><button id="authSignup" class="bcancel">Create account</button></div>
+    <div class="authbtns"><button id="authSignin" class="bsave">Sign in</button><button id="authShowSignup" class="bcancel" type="button">Create account</button></div>
     <div class="authforgot"><a href="#" id="authForgot">Forgot password?</a></div>
+  </div>
+  <div id="authSignupBox" style="display:none">
+    <p class="authsub">Create your account &mdash; an admin will approve it</p>
+    <div class="namerow"><input type="text" id="authFirst" placeholder="First name"><input type="text" id="authLast" placeholder="Last name"></div>
+    <input type="email" id="authSuEmail" placeholder="Email" autocomplete="email">
+    <input type="password" id="authSuPass" placeholder="Password (min 6 characters)" autocomplete="new-password">
+    <input type="password" id="authSuConfirm" placeholder="Confirm password" autocomplete="new-password">
+    <div id="authSuErr" class="autherr"></div>
+    <div class="authbtns"><button id="authSuSubmit" class="bsave">Create account</button><button id="authBackSignin" class="bcancel" type="button">Back to sign in</button></div>
+  </div>
+  <div id="authPendingBox" style="display:none;text-align:center">
+    <p class="authsub" id="authPendingMsg" style="margin:4px 0 14px">Your account is awaiting admin approval. You'll be able to sign in once an admin approves you.</p>
+    <div class="authbtns"><button id="authPendingLogout" class="bcancel">Sign out</button></div>
   </div>
   <div id="authResetBox" style="display:none">
     <p class="authsub">Set a new password for your account</p>
-    <input type="password" id="authNewPass" placeholder="New password (min 6 chars)" autocomplete="new-password">
+    <input type="password" id="authNewPass" placeholder="New password (min 6 characters)" autocomplete="new-password">
     <div id="authResetErr" class="autherr"></div>
     <div class="authbtns"><button id="authSetPass" class="bsave">Update password</button></div>
   </div>
@@ -1435,6 +1449,7 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
 // ================= Auth (login / roles / users) =================
 function showGate(){const g=document.getElementById('authGate');if(g)g.style.display='flex';}
 function hideGate(){const g=document.getElementById('authGate');if(g)g.style.display='none';}
+function authShow(box){['authLoginBox','authSignupBox','authPendingBox','authResetBox'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=(id===box)?'block':'none';});}
 function applyRole(){
   document.body.dataset.role=ROLE;
   const who=document.getElementById('authWho'); if(who)who.innerHTML=(USER?USER.email:'')+' <span class="rolebadge">'+ROLE+'</span>';
@@ -1444,7 +1459,11 @@ function applyRole(){
 let pollStarted=false;
 async function afterLogin(user){
   USER=user;
-  try{const {data}=await sb.from('profiles').select('role').eq('id',user.id).single();ROLE=(data&&data.role)||'viewer';}catch(e){ROLE='viewer';}
+  let st='approved';
+  try{const {data}=await sb.from('profiles').select('role,status').eq('id',user.id).single();ROLE=(data&&data.role)||'viewer';st=(data&&data.status)||'approved';}catch(e){ROLE='viewer';}
+  if(st!=='approved'){ document.body.dataset.role='viewer'; const ab=document.getElementById('authBar'); if(ab)ab.style.display='none';
+    const msg=document.getElementById('authPendingMsg'); if(msg)msg.textContent=(st==='rejected')?'Your account request was declined. Please contact an admin.':"Your account is awaiting admin approval. You'll be able to sign in once an admin approves you.";
+    showGate(); authShow('authPendingBox'); return; }
   hideGate(); const b=document.getElementById('authBar'); if(b)b.style.display='flex'; applyRole();
   await clogLoad();
   const dbok = await loadFromDB();
@@ -1457,27 +1476,37 @@ function wireAuthUI(){
   const si=document.getElementById('authSignin'); if(!si)return;
   si.onclick=async()=>{err.textContent='';err.style.color='var(--red)';if(!sb){err.textContent='Login works on the hosted site.';return;}
     const em=document.getElementById('authEmail').value.trim(), pw=document.getElementById('authPass').value;
-    if(!em||!pw){err.textContent='Email aur password dono daalo.';return;}
+    if(!em||!pw){err.textContent='Please enter both email and password.';return;}
     const {error}=await sb.auth.signInWithPassword({email:em,password:pw});
     if(error)err.textContent=error.message;};
-  document.getElementById('authSignup').onclick=async()=>{err.textContent='';if(!sb)return;
-    const em=document.getElementById('authEmail').value.trim(), pw=document.getElementById('authPass').value;
-    if(!em||!pw){err.style.color='var(--red)';err.textContent='Account banane ke liye email aur password dono daalo (password min 6 chars).';return;}
-    const {error}=await sb.auth.signUp({email:em,password:pw});
-    err.style.color=error?'var(--red)':'var(--green)';
-    err.textContent=error?error.message:'Account ban gaya! Agar login na kare to admin se access maango.';};
+  const ss=document.getElementById('authShowSignup'); if(ss)ss.onclick=()=>authShow('authSignupBox');
+  const bs=document.getElementById('authBackSignin'); if(bs)bs.onclick=()=>authShow('authLoginBox');
+  const su=document.getElementById('authSuSubmit'); if(su)su.onclick=async()=>{const e3=document.getElementById('authSuErr');e3.style.color='var(--red)';if(!sb)return;
+    const fn=document.getElementById('authFirst').value.trim(), ln=document.getElementById('authLast').value.trim();
+    const em=document.getElementById('authSuEmail').value.trim(), pw=document.getElementById('authSuPass').value, cf=document.getElementById('authSuConfirm').value;
+    if(!fn||!ln){e3.textContent='Please enter your first and last name.';return;}
+    if(!em){e3.textContent='Please enter your email.';return;}
+    if(!pw||pw.length<6){e3.textContent='Password must be at least 6 characters.';return;}
+    if(pw!==cf){e3.textContent='Passwords do not match.';return;}
+    su.disabled=true;
+    const {error}=await sb.auth.signUp({email:em,password:pw,options:{data:{first_name:fn,last_name:ln}}});
+    su.disabled=false;
+    if(error){e3.textContent=error.message;return;}
+    e3.style.color='var(--green)';
+    e3.textContent='Account created! An admin will approve it. You can sign in after approval.';};
+  const pl=document.getElementById('authPendingLogout'); if(pl)pl.onclick=async()=>{if(sb)await sb.auth.signOut();location.reload();};
   const fp=document.getElementById('authForgot'); if(fp)fp.onclick=async(ev)=>{ev.preventDefault();if(!sb)return;
     const em=document.getElementById('authEmail').value.trim();
-    if(!em){err.style.color='var(--red)';err.textContent='Pehle upar apna email daalo, phir Forgot password dabao.';return;}
+    if(!em){err.style.color='var(--red)';err.textContent='Enter your email above first, then click Forgot password.';return;}
     const {error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:location.origin+location.pathname});
     err.style.color=error?'var(--red)':'var(--green)';
-    err.textContent=error?error.message:('Reset link bhej diya '+em+' par. Apna email check karo.');};
+    err.textContent=error?error.message:('Reset link sent to '+em+'. Please check your email.');};
   const sp=document.getElementById('authSetPass'); if(sp)sp.onclick=async()=>{const e2=document.getElementById('authResetErr');
     const np=document.getElementById('authNewPass').value;
-    if(!np||np.length<6){e2.style.color='var(--red)';e2.textContent='Password kam se kam 6 characters ka ho.';return;}
+    if(!np||np.length<6){e2.style.color='var(--red)';e2.textContent='Password must be at least 6 characters.';return;}
     const {error}=await sb.auth.updateUser({password:np});
     e2.style.color=error?'var(--red)':'var(--green)';
-    e2.textContent=error?error.message:'Password update ho gaya! Login kar rahe hain...';
+    e2.textContent=error?error.message:'Password updated! Signing you in...';
     if(!error)setTimeout(()=>location.reload(),1200);};
   document.getElementById('authLogout').onclick=async()=>{if(sb)await sb.auth.signOut();};
   document.getElementById('authUsersBtn').onclick=()=>{document.getElementById('authMenu').classList.remove('open');openUsers();};
@@ -1508,8 +1537,8 @@ async function authInit(){
   const {data:{session}}=await sb.auth.getSession();
   if(session&&session.user){await afterLogin(session.user);} else {showGate();}
   sb.auth.onAuthStateChange((_e,s)=>{
-    if(_e==='PASSWORD_RECOVERY'){ showGate(); const lb=document.getElementById('authLoginBox'),rb=document.getElementById('authResetBox'); if(lb)lb.style.display='none'; if(rb)rb.style.display='block'; return; }
-    if(s&&s.user){afterLogin(s.user);} else {USER=null;ROLE='viewer';document.body.dataset.role='viewer';const b=document.getElementById('authBar');if(b)b.style.display='none';showGate();} });
+    if(_e==='PASSWORD_RECOVERY'){ showGate(); authShow('authResetBox'); return; }
+    if(s&&s.user){afterLogin(s.user);} else {USER=null;ROLE='viewer';document.body.dataset.role='viewer';const b=document.getElementById('authBar');if(b)b.style.display='none';showGate();authShow('authLoginBox');} });
 }
 
 renderSummary();renderBands();authInit();
