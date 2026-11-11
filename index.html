@@ -3,7 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ranking Up/Down Tracker</title>
+<title>EMR Rank Tracker</title>
+<link rel="icon" href="favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -177,6 +181,50 @@ h4.sec{font-size:13px;color:var(--navy);margin:4px 0 8px}
 .sugg div{padding:8px 11px;cursor:pointer;font-size:13px;border-bottom:1px solid #f0f2f6}
 .sugg div:hover{background:#eef4fc}
 .selkw{font-weight:700;color:var(--navy);margin:6px 0 4px;font-size:14px}
+/* ========== v2 — EMR modern redesign (brand palette + SEMrush-style polish) ========== */
+:root{
+  --navy:#1e1550; --blue:#6d3bf5; --bg:#f4f4fb; --line:#ece9f6; --gray:#8a89a6;
+  --greenbg:#e7f7ee; --redbg:#fdecec; --brand:#6d3bf5; --brand-d:#4901fd;
+  --lime:#87c71f; --purple:#7951bd; --teal:#2bb6ac; --yellow:#eab308;
+}
+body{font-family:'Inter',-apple-system,"Segoe UI",system-ui,Arial,sans-serif;background:var(--bg);color:#241f3d}
+.wrap{max-width:1240px}
+header.top{background:#fff;color:var(--navy);border:1px solid var(--line);border-radius:16px;box-shadow:0 6px 22px rgba(44,22,96,.06);padding:16px 22px}
+.brandrow{display:flex;align-items:center;gap:15px;flex-wrap:wrap}
+.brandlogo{height:38px;width:auto}
+.brandtxt h1{font-size:18px;font-weight:800;color:var(--navy);letter-spacing:-.2px}
+header.top .sub{font-size:12.5px;color:var(--gray);opacity:1;margin-top:2px}
+.verstoggle{margin-left:auto;display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:999px;background:linear-gradient(90deg,var(--brand),var(--brand-d));color:#fff;font-weight:700;font-size:12.5px;text-decoration:none;box-shadow:0 5px 14px rgba(73,1,253,.28);white-space:nowrap}
+.verstoggle:hover{filter:brightness(1.07)}
+.tabs{display:inline-flex;gap:4px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:5px;box-shadow:0 3px 12px rgba(44,22,96,.05)}
+.tab{background:transparent;color:var(--gray);border-radius:999px;padding:9px 20px;font-weight:700}
+.tab.active{background:linear-gradient(90deg,var(--brand),var(--brand-d));color:#fff;box-shadow:0 4px 12px rgba(73,1,253,.28)}
+.panel{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 5px 18px rgba(44,22,96,.05);padding:20px 22px}
+.panel h3,.panel h4.sec{color:var(--navy);font-weight:800}
+.barrow{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 3px 12px rgba(44,22,96,.05)}
+.barrow b{color:var(--navy)}
+.hstat{background:linear-gradient(135deg,#f4eeff,#eef3ff);border:1px solid #ece6fb;border-radius:13px}
+.hstat b{color:var(--brand)}
+th{color:var(--gray);letter-spacing:.6px}
+td.name{color:var(--navy);font-weight:700}
+.sumrow td{border-top:2px solid var(--brand);background:#f5f1ff}
+.sumrow .name{color:var(--brand)}
+tbody tr:hover td{background:#faf8ff}
+.histtbl tr:hover .c0,.histtbl tr:hover .cID,.histtbl tr:hover .cRT,.histtbl tr:hover .c1,.histtbl tr:hover .c2,.histtbl tr:hover .c3,.histtbl tr:hover .cEnq,.histtbl tr:hover .c4{background:#faf8ff}
+.rowup{background:var(--greenbg)}.rowdown{background:var(--redbg)}
+input[type=text],input[type=number],select,.ms-btn{border-radius:10px;border-color:#ddd8ef}
+input[type=text]:focus,input[type=number]:focus,select:focus,.ms-btn:focus{outline:2px solid #ddd0ff;border-color:var(--brand)}
+.exportbtn{background:linear-gradient(90deg,var(--brand),var(--brand-d));border:none;border-radius:10px;box-shadow:0 4px 12px rgba(73,1,253,.22)}
+.resetbtn{border-radius:10px;border-color:#ddd8ef;color:var(--navy)}
+.ms-panel{border-radius:12px;border-color:#e7e2f7}
+.ms-panel label:hover{background:#f3eeff}
+.ms-sep{color:var(--brand)}
+.c-new{background:#efe9ff;color:var(--brand)}
+.tagP{background:#efe9ff;color:var(--brand)}
+.selkw{color:var(--brand)}
+::-webkit-scrollbar{height:10px;width:10px}
+::-webkit-scrollbar-thumb{background:#d9d3f0;border-radius:10px}
+::-webkit-scrollbar-thumb:hover{background:#c3b9ea}
 </style>
 </head>
 <body>
@@ -219,8 +267,14 @@ h4.sec{font-size:13px;color:var(--navy);margin:4px 0 8px}
 </div></div>
 <div class="wrap">
 <header class="top">
-  <h1>Ranking Up / Down Tracker</h1>
-  <div class="sub">See who moved up or down with each new ranking &mdash; by person and report type. April&ndash;June 2026.</div>
+  <div class="brandrow">
+    <img src="emr-logo.svg" alt="EMR" class="brandlogo">
+    <div class="brandtxt">
+      <h1>EMR Rank Tracker</h1>
+      <div class="sub">Keyword Google-ranking performance &mdash; by owner &amp; report type</div>
+    </div>
+    <a class="verstoggle" href="classic.html" title="Switch to the classic view">&#8634; Classic view</a>
+  </div>
 </header>
 
 <div class="barrow">
