@@ -150,6 +150,13 @@ h4.sec{font-size:13px;color:var(--navy);margin:4px 0 8px}
 .cmt-pop textarea{width:100%;height:170px;border:1px solid #cdd6e4;border-radius:7px;padding:7px;font-size:13px;resize:vertical;font-family:inherit}
 .cmt-pop .prow{display:flex;justify-content:space-between;margin-top:9px;gap:8px}
 .cmt-pop button{border:none;border-radius:7px;padding:7px 13px;cursor:pointer;font-weight:600;font-size:12.5px}
+.cp-list{max-height:220px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;padding:6px;margin-bottom:9px;background:#fafbfe}
+.cp-empty{color:var(--gray);font-size:12.5px;padding:10px;text-align:center}
+.cp-item{padding:8px 9px;border-bottom:1px solid #eef1f6}
+.cp-item:last-child{border-bottom:none}
+.cp-body{font-size:13px;color:#1c2533;white-space:pre-wrap;word-break:break-word}
+.cp-meta{font-size:11px;color:var(--brand);font-weight:700;margin-top:3px}
+.cmt-pop textarea{height:80px}
 .bsave{background:var(--navy);color:#fff}.bdel{background:#fbeaea;color:var(--red)}.bcancel{background:#eef2f7;color:var(--navy)}
 .cpList{max-height:230px;overflow-y:auto;margin-bottom:9px}
 .cpItem{display:flex;align-items:center;gap:9px;padding:4px 0}
@@ -244,16 +251,36 @@ input[type=text]:focus,input[type=number]:focus,select:focus,.ms-btn:focus{outli
 ::-webkit-scrollbar{height:10px;width:10px}
 ::-webkit-scrollbar-thumb{background:#d9d3f0;border-radius:10px}
 ::-webkit-scrollbar-thumb:hover{background:#c3b9ea}
+.authlogo{height:34px;display:block;margin:0 auto 12px}
+.authcard h2{text-align:center}
+.authcard .bsave{background:linear-gradient(90deg,var(--brand),var(--brand-d));color:#fff}
+.authcard .bcancel{background:#eef0f7;color:var(--navy)}
+.authforgot{margin-top:12px;text-align:center}
+.authforgot a{color:var(--brand);font-size:12.5px;font-weight:600;text-decoration:none}
+.authforgot a:hover{text-decoration:underline}
+.dashbtn{display:none;margin-left:auto;align-items:center;gap:7px;padding:9px 15px;border-radius:999px;background:#fff;border:1.5px solid var(--brand);color:var(--brand);font-weight:700;font-size:12.5px;text-decoration:none;white-space:nowrap}
+.dashbtn:hover{background:var(--brand);color:#fff}
+body[data-role="editor"] .dashbtn,body[data-role="admin"] .dashbtn{display:inline-flex}
 </style>
 </head>
 <body>
 <div id="authGate"><div class="authcard">
-  <h2>EMR Ranking Dashboard</h2>
-  <p class="authsub">Sign in to continue</p>
-  <input type="email" id="authEmail" placeholder="Email" autocomplete="username">
-  <input type="password" id="authPass" placeholder="Password" autocomplete="current-password">
-  <div id="authErr" class="autherr"></div>
-  <div class="authbtns"><button id="authSignin" class="bsave">Sign in</button><button id="authSignup" class="bcancel">Create account</button></div>
+  <img src="emr-logo.svg" alt="EMR" class="authlogo">
+  <h2>EMR Rank Tracker</h2>
+  <div id="authLoginBox">
+    <p class="authsub">Sign in to continue</p>
+    <input type="email" id="authEmail" placeholder="Email" autocomplete="username">
+    <input type="password" id="authPass" placeholder="Password" autocomplete="current-password">
+    <div id="authErr" class="autherr"></div>
+    <div class="authbtns"><button id="authSignin" class="bsave">Sign in</button><button id="authSignup" class="bcancel">Create account</button></div>
+    <div class="authforgot"><a href="#" id="authForgot">Forgot password?</a></div>
+  </div>
+  <div id="authResetBox" style="display:none">
+    <p class="authsub">Set a new password for your account</p>
+    <input type="password" id="authNewPass" placeholder="New password (min 6 chars)" autocomplete="new-password">
+    <div id="authResetErr" class="autherr"></div>
+    <div class="authbtns"><button id="authSetPass" class="bsave">Update password</button></div>
+  </div>
 </div></div>
 <div id="authBar">
   <button id="authToggle"><span id="authWho"></span> <span class="caret">&#9662;</span></button>
@@ -292,6 +319,7 @@ input[type=text]:focus,input[type=number]:focus,select:focus,.ms-btn:focus{outli
       <h1>EMR Rank Tracker</h1>
       <div class="sub">Keyword Google-ranking performance &mdash; by owner &amp; report type</div>
     </div>
+    <a class="dashbtn" href="admin.html" title="Open the admin dashboard (manage keywords, uploads, users)">&#9881; Dashboard</a>
     <button type="button" class="verstoggle" id="designToggle" title="Switch view: EMR &rarr; SEMrush &rarr; Classic">&#127912; <span id="designLabel">EMR</span> &#8635;</button>
   </div>
 </header>
@@ -484,7 +512,7 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const sb = (window.supabase&&window.supabase.createClient)?window.supabase.createClient(SB_URL,SB_KEY):null;
 const SHARED = !!sb;
 let USER=null, ROLE='viewer';
-const PUBLIC=true;  // index.html = public view-only site
+const PUBLIC=false;  // login required to view the dashboard
 function canEdit(){return SHARED ? (ROLE==='admin'||ROLE==='editor') : true;}
 D.kw.forEach((k,i)=>k._i=i);
 const ann = {};                                  // kw -> {name, comment}
@@ -579,8 +607,19 @@ function renderDeletedList(){ const t=document.getElementById('delTable'); if(!t
 }
 function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function dispName(k){return k.dbname?k.dbname:((ann[k.kw]&&ann[k.kw].name)?ann[k.kw].name:k.kw);}
-function hasComment(k){return !!(ann[k.kw]&&ann[k.kw].comment);}
-function getComment(k){return (ann[k.kw]&&ann[k.kw].comment)||'';}
+// ===== Threaded, named, append-only comments (comment_log) =====
+const CLOG={};     // kw -> [{author_email,author_name,body,created_at}] (oldest first)
+const UNAMES={};   // email -> display name (from profiles)
+function hasComment(k){return !!(CLOG[k.kw]&&CLOG[k.kw].length);}
+function getComment(k){const a=CLOG[k.kw];return (a&&a.length)?a[a.length-1].body:'';}
+function cAuthor(c){return c.author_name || UNAMES[c.author_email] || (c.author_email&&c.author_email!=='public'?c.author_email:'Earlier');}
+function cWhen(iso){ if(!iso)return ''; const d=new Date(iso); if(isNaN(d))return ''; return d.toLocaleString(undefined,{day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit'}); }
+async function clogLoad(){ if(!sb)return;
+  try{ const {data}=await sb.from('comment_log').select('kw,author_email,author_name,body,created_at').order('created_at',{ascending:true});
+    for(const k in CLOG)delete CLOG[k];
+    (data||[]).forEach(c=>{(CLOG[c.kw]=CLOG[c.kw]||[]).push(c);}); }catch(e){console.warn('clogLoad',e);}
+  try{ const {data}=await sb.from('profiles').select('email,name'); (data||[]).forEach(p=>{if(p.email)UNAMES[p.email]=p.name||'';}); }catch(e){}
+}
 async function annLoad(){
   if(sb){
     try{const {data}=await sb.from('comments').select('kw,comment');
@@ -1073,28 +1112,39 @@ document.getElementById('exportXlsxBtn').onclick=exportXLSX;
 
 // ============ Edit + Comment interactions ============
 const cmtPop=document.createElement('div');cmtPop.className='cmt-pop';
-cmtPop.innerHTML='<h5 id="cpTitle"></h5><textarea id="cpText" placeholder="Write a comment..."></textarea><div class="prow"><button class="bdel" id="cpDel">Delete</button><div><button class="bcancel" id="cpCancel">Cancel</button> <button class="bsave" id="cpSave">Save</button></div></div>';
+cmtPop.innerHTML='<h5 id="cpTitle"></h5><div id="cpList" class="cp-list"></div><div id="cpAddWrap"><textarea id="cpText" placeholder="Write a comment..."></textarea><div class="prow"><span class="cp-hint"></span><div><button class="bcancel" id="cpCancel">Close</button> <button class="bsave" id="cpSave">Add comment</button></div></div></div>';
 document.body.appendChild(cmtPop);
 const cmtTip=document.createElement('div');cmtTip.className='cmt-tip';document.body.appendChild(cmtTip);
 let cpKw=null;
+function renderThread(kw){
+  const list=document.getElementById('cpList'); const arr=CLOG[kw]||[];
+  if(!arr.length){ list.innerHTML='<div class="cp-empty">No comments yet.</div>'; return; }
+  list.innerHTML=arr.slice().reverse().map(c=>`<div class="cp-item"><div class="cp-body">${escH(c.body)}</div><div class="cp-meta">${escH(cAuthor(c))} &middot; ${escH(cWhen(c.created_at))}</div></div>`).join('');
+}
 function openCmt(i,btn){
   const k=D.kw[i];cpKw=k.kw;
   document.getElementById('cpTitle').textContent=dispName(k);
-  document.getElementById('cpText').value=getComment(k);
+  renderThread(k.kw);
+  const ta=document.getElementById('cpText'); ta.value='';
+  const canC=canEdit(); document.getElementById('cpAddWrap').style.display=canC?'block':'none';
   const r=btn.getBoundingClientRect();cmtPop.style.display='block';
   let left=Math.min(r.left, window.innerWidth-636), top=r.bottom+6;
-  if(top+330>window.innerHeight) top=Math.max(8,r.top-340);
+  if(top+380>window.innerHeight) top=Math.max(8,window.innerHeight-390);
   cmtPop.style.left=Math.max(8,left)+'px';cmtPop.style.top=top+'px';
-  document.getElementById('cpText').focus();
+  if(canC)ta.focus();
 }
 function closeCmt(){cmtPop.style.display='none';cpKw=null;}
 document.getElementById('cpCancel').onclick=closeCmt;
 document.getElementById('cpSave').onclick=async()=>{
-  if(cpKw==null)return;const v=document.getElementById('cpText').value.trim();
-  ann[cpKw]=ann[cpKw]||{};ann[cpKw].comment=v;await annSave(cpKw);closeCmt();renderKw(false);
-};
-document.getElementById('cpDel').onclick=async()=>{
-  if(cpKw==null)return;ann[cpKw]=ann[cpKw]||{};ann[cpKw].comment='';await annSave(cpKw);closeCmt();renderKw(false);
+  if(cpKw==null)return; if(!canEdit()){alert('You need Editor or Admin access to comment.');return;}
+  const v=document.getElementById('cpText').value.trim(); if(!v)return;
+  const email=(USER&&USER.email)||null; const name=(email&&UNAMES[email])||(email?email.split('@')[0]:'')||null;
+  const row={kw:cpKw,author_email:email,author_name:name,body:v};
+  const sv=document.getElementById('cpSave'); sv.disabled=true;
+  const {data,error}=await sb.from('comment_log').insert(row).select().single(); sv.disabled=false;
+  if(error){alert('Comment failed: '+(error.message||'no access'));return;}
+  (CLOG[cpKw]=CLOG[cpKw]||[]).push(data||Object.assign({created_at:new Date().toISOString()},row));
+  document.getElementById('cpText').value=''; renderThread(cpKw); renderKw(false);
 };
 document.addEventListener('click',e=>{if(!e.target.closest('.cmt-pop')&&!e.target.closest('.cmtbtn'))closeCmt();});
 
@@ -1396,11 +1446,11 @@ async function afterLogin(user){
   USER=user;
   try{const {data}=await sb.from('profiles').select('role').eq('id',user.id).single();ROLE=(data&&data.role)||'viewer';}catch(e){ROLE='viewer';}
   hideGate(); const b=document.getElementById('authBar'); if(b)b.style.display='flex'; applyRole();
-  await annLoad();
+  await clogLoad();
   const dbok = await loadFromDB();
   if(!dbok){ await ovrLoad(); applyOverrides(); G=recomputeGroups(); }
   renderSummary(); renderBands(); renderKw(true); renderHighlights();
-  if(!pollStarted){pollStarted=true;setInterval(async()=>{if(USER){await annLoad();renderKw(false);}},20000);}
+  if(!pollStarted){pollStarted=true;setInterval(async()=>{if(USER){await clogLoad();renderKw(false);}},20000);}
 }
 function wireAuthUI(){
   const err=document.getElementById('authErr');
@@ -1412,6 +1462,19 @@ function wireAuthUI(){
     const {error}=await sb.auth.signUp({email:document.getElementById('authEmail').value.trim(),password:document.getElementById('authPass').value});
     err.style.color=error?'var(--red)':'var(--green)';
     err.textContent=error?error.message:'Account created. If it does not sign you in, ask your admin to enable access.';};
+  const fp=document.getElementById('authForgot'); if(fp)fp.onclick=async(ev)=>{ev.preventDefault();if(!sb)return;
+    const em=document.getElementById('authEmail').value.trim();
+    if(!em){err.style.color='var(--red)';err.textContent='Pehle upar apna email daalo, phir Forgot password dabao.';return;}
+    const {error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:location.origin+location.pathname});
+    err.style.color=error?'var(--red)':'var(--green)';
+    err.textContent=error?error.message:('Reset link bhej diya '+em+' par. Apna email check karo.');};
+  const sp=document.getElementById('authSetPass'); if(sp)sp.onclick=async()=>{const e2=document.getElementById('authResetErr');
+    const np=document.getElementById('authNewPass').value;
+    if(!np||np.length<6){e2.style.color='var(--red)';e2.textContent='Password kam se kam 6 characters ka ho.';return;}
+    const {error}=await sb.auth.updateUser({password:np});
+    e2.style.color=error?'var(--red)':'var(--green)';
+    e2.textContent=error?error.message:'Password update ho gaya! Login kar rahe hain...';
+    if(!error)setTimeout(()=>location.reload(),1200);};
   document.getElementById('authLogout').onclick=async()=>{if(sb)await sb.auth.signOut();};
   document.getElementById('authUsersBtn').onclick=()=>{document.getElementById('authMenu').classList.remove('open');openUsers();};
   document.getElementById('umClose').onclick=()=>document.getElementById('usersModal').style.display='none';
@@ -1440,7 +1503,9 @@ async function authInit(){
   if(badge){badge.textContent='Shared';badge.className='syncbadge sync-shared';}
   const {data:{session}}=await sb.auth.getSession();
   if(session&&session.user){await afterLogin(session.user);} else {showGate();}
-  sb.auth.onAuthStateChange((_e,s)=>{ if(s&&s.user){afterLogin(s.user);} else {USER=null;ROLE='viewer';document.body.dataset.role='viewer';const b=document.getElementById('authBar');if(b)b.style.display='none';showGate();} });
+  sb.auth.onAuthStateChange((_e,s)=>{
+    if(_e==='PASSWORD_RECOVERY'){ showGate(); const lb=document.getElementById('authLoginBox'),rb=document.getElementById('authResetBox'); if(lb)lb.style.display='none'; if(rb)rb.style.display='block'; return; }
+    if(s&&s.user){afterLogin(s.user);} else {USER=null;ROLE='viewer';document.body.dataset.role='viewer';const b=document.getElementById('authBar');if(b)b.style.display='none';showGate();} });
 }
 
 renderSummary();renderBands();authInit();

@@ -287,7 +287,7 @@ th{color:var(--gray)}
   </div>
   <div class="muted" style="font-size:12px;margin-bottom:4px">Rank on each date (number, "-" = not in top 30, blank = not tracked):</div>
   <div class="rgrid" id="f_ranks"></div>
-  <div class="full"><label>Comment / notes (visible to everyone on the site) <textarea id="f_comment" rows="3" style="width:100%;padding:8px;border:1px solid #cdd6e4;border-radius:8px;font-family:inherit;font-size:13px"></textarea></label></div>
+  <div class="full"><label>Add a comment (added to the thread with your name &amp; time; old comments never change) <textarea id="f_comment" rows="3" style="width:100%;padding:8px;border:1px solid #cdd6e4;border-radius:8px;font-family:inherit;font-size:13px"></textarea></label></div>
   <div class="mrow"><button class="btn ghost" id="kwmCancel">Cancel</button><button class="btn primary" id="kwmSave">Save</button></div>
 </div></div>
 
@@ -297,6 +297,7 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const sb=window.supabase.createClient(SB_URL,SB_KEY);
 let USER=null, ROLE='viewer', KW=[], DATES=[], OWNERS=[], RTYPES=[], COMMENTS={};
 const REPORT_TYPES=["EMR + HC - Market Report","Epidemiology Forecast","Manufacturing Plant Project","Patent Landscape","Pipeline Analysis","Price Trend","Procurement Intelligence Report","Supply and Demand Analysis","Technology Scouting","Topical Mapping"];
+let MYNAME='';
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 function joinRanks(r){return r.map(v=>v==null?'':(v===''?'':v)).join(',');}
 function parseRanks(s,n){const a=String(s||'').split(',').map(x=>{x=x.trim();return x;}); while(a.length<n)a.push(''); return a.slice(0,n);}
@@ -308,7 +309,8 @@ async function logAct(action,detail){try{await sb.from('activity').insert({who:U
 async function boot(){
   const {data:{session}}=await sb.auth.getSession();
   if(session&&session.user){await afterLogin(session.user);}
-  sb.auth.onAuthStateChange((event,s)=>{ if(event==='SIGNED_IN' && s && s.user) afterLogin(s.user); });
+  else { location.replace('index.html'); return; }   // single login lives on the frontend
+  sb.auth.onAuthStateChange((event,s)=>{ if(event==='SIGNED_IN' && s && s.user) afterLogin(s.user); else if(event==='SIGNED_OUT') location.replace('index.html'); });
 }
 document.getElementById('signin').onclick=async()=>{
   const e=document.getElementById('lerr');e.textContent='';
@@ -319,7 +321,7 @@ document.getElementById('pass').addEventListener('keydown',e=>{if(e.key==='Enter
 document.getElementById('logout').onclick=async()=>{await sb.auth.signOut();location.reload();};
 async function afterLogin(user){
   USER=user;
-  try{const {data}=await sb.from('profiles').select('role').eq('id',user.id).single();ROLE=(data&&data.role)||'viewer';}catch(e){ROLE='viewer';}
+  try{const {data}=await sb.from('profiles').select('role,name').eq('id',user.id).single();ROLE=(data&&data.role)||'viewer';MYNAME=(data&&data.name)||(user.email?user.email.split('@')[0]:'');}catch(e){ROLE='viewer';}
   document.getElementById('login').style.display='none';
   document.getElementById('app').style.display='block';
   document.getElementById('who').innerHTML=esc(user.email)+' <span class="rolebadge">'+ROLE+'</span>';
@@ -443,7 +445,7 @@ function openKw(kw){
   document.getElementById('f_searches').value=k.searches==null?'':k.searches;
   document.getElementById('f_url').value=k.url||'';
   fillRanks(parseRanks(k.ranks,DATES.length));
-  document.getElementById('f_comment').value=COMMENTS[k.kw]||'';
+  document.getElementById('f_comment').value='';
   openModal();
 }
 document.getElementById('kwAdd').onclick=()=>{
@@ -471,7 +473,7 @@ document.getElementById('kwmSave').onclick=async()=>{
   if(res.error){alert('Save failed: '+res.error.message);return;}
   if(editKey && kw!==editKey){ await sb.from('comments').update({kw}).eq('kw',editKey); if(editKey in COMMENTS){COMMENTS[kw]=COMMENTS[editKey];delete COMMENTS[editKey];} }
   const cm=document.getElementById('f_comment').value.trim();
-  if((COMMENTS[kw]||'')!==cm){ await sb.from('comments').upsert({kw,comment:cm||null,updated_by:USER.email,updated_at:new Date().toISOString()}); COMMENTS[kw]=cm; }
+  if(cm){ await sb.from('comment_log').insert({kw,author_email:USER.email,author_name:MYNAME||USER.email,body:cm}); }
   await logAct(editKey?(kw!==editKey?'rename':'edit'):'add', (editKey&&kw!==editKey)?(editKey+' -> '+kw):('keyword: '+kw));
   if(editKey){ const ix=KW.findIndex(x=>x.kw===editKey); if(ix>=0)KW[ix]=row; }
   else KW.push(row);
@@ -490,13 +492,19 @@ async function rstKw(kw){ const {error}=await sb.from('keywords').update({delete
 // ---------- Users ----------
 async function loadUsers(){
   const t=document.getElementById('usersTable'); t.innerHTML='<tr><td>Loading...</td></tr>';
-  const {data,error}=await sb.from('profiles').select('id,email,role').order('email');
+  const {data,error}=await sb.from('profiles').select('id,email,name,role').order('email');
   if(error){t.innerHTML='<tr><td>'+esc(error.message)+'</td></tr>';return;}
-  let h='<tr><th>Email</th><th>Role</th></tr>';
-  (data||[]).forEach(u=>{h+=`<tr><td>${esc(u.email||u.id)}</td><td><select data-id="${u.id}" ${ROLE==='admin'?'':'disabled'}>
-    <option value="viewer"${u.role==='viewer'?' selected':''}>Viewer</option><option value="editor"${u.role==='editor'?' selected':''}>Editor</option><option value="admin"${u.role==='admin'?' selected':''}>Admin</option></select></td></tr>`;});
+  const dis=ROLE==='admin'?'':'disabled';
+  let h='<tr><th>Email</th><th>Name</th><th>Role</th><th>Password</th></tr>';
+  (data||[]).forEach(u=>{h+=`<tr><td>${esc(u.email||u.id)}</td>
+    <td><input type="text" class="uname" data-id="${u.id}" value="${esc(u.name||'')}" placeholder="e.g. Vikas" style="padding:7px 9px;border:1px solid #cdd6e4;border-radius:7px;font-size:13px;width:150px" ${dis}></td>
+    <td><select class="urole" data-id="${u.id}" ${dis}>
+      <option value="viewer"${u.role==='viewer'?' selected':''}>Viewer</option><option value="editor"${u.role==='editor'?' selected':''}>Editor</option><option value="admin"${u.role==='admin'?' selected':''}>Admin</option></select></td>
+    <td><button class="btn ghost sm ureset" data-email="${esc(u.email||'')}">Send reset link</button></td></tr>`;});
   t.innerHTML=h;
-  t.querySelectorAll('select[data-id]').forEach(s=>s.onchange=async()=>{const {error}=await sb.from('profiles').update({role:s.value}).eq('id',s.dataset.id);if(error)alert(error.message);else logAct('role','set '+s.dataset.id+' = '+s.value);});
+  t.querySelectorAll('select.urole').forEach(s=>s.onchange=async()=>{const {error}=await sb.from('profiles').update({role:s.value}).eq('id',s.dataset.id);if(error)alert(error.message);else logAct('role','set '+s.dataset.id+' = '+s.value);});
+  t.querySelectorAll('input.uname').forEach(inp=>inp.onchange=async()=>{const {error}=await sb.from('profiles').update({name:inp.value.trim()||null}).eq('id',inp.dataset.id);if(error)alert('Save failed: '+error.message);else logAct('name',inp.dataset.id+' = '+inp.value.trim());});
+  t.querySelectorAll('button.ureset').forEach(b=>b.onclick=async()=>{const em=b.dataset.email;if(!em)return;if(!confirm('Send a password-reset link to '+em+'?'))return;const {error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:location.origin+'/index.html'});if(error)alert(error.message);else{b.textContent='Sent ✓';b.disabled=true;logAct('reset-link',em);}});
 }
 
 // ---------- Activity ----------
