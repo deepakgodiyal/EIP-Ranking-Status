@@ -83,6 +83,11 @@ footer{text-align:center;color:var(--gray);font-size:11.5px;margin:18px 0}
 #authBar{position:fixed;top:12px;right:16px;z-index:300;display:none}
 #authToggle{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid #e2e7ef;border-radius:22px;padding:7px 14px;cursor:pointer;font-size:12.5px;font-weight:600;color:#1c2533;box-shadow:0 3px 12px rgba(20,40,80,.16)}
 #authToggle .caret{color:var(--gray);font-size:10px}
+.uava{width:26px;height:26px;border-radius:50%;background:var(--brand);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex:0 0 auto;text-transform:uppercase;box-shadow:0 1px 4px rgba(20,40,80,.18)}
+.uname{font-weight:700;color:#1c2533;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.authmenu-head{padding:4px 12px 10px;border-bottom:1px solid #eef1f6;margin-bottom:4px}
+#amName{font-weight:800;font-size:13px;color:#1c2533;display:flex;align-items:center;gap:7px}
+.authmenu-head .am-sub{font-size:11px;color:var(--gray);margin-top:3px;word-break:break-all}
 #authMenu{position:absolute;top:46px;right:0;background:#fff;border:1px solid #e2e7ef;border-radius:12px;box-shadow:0 12px 34px rgba(20,40,80,.2);min-width:200px;padding:6px;display:none}
 #authMenu.open{display:block}
 #authMenu button{display:block;width:100%;text-align:left;border:none;background:none;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:13px;color:#1c2533;font-weight:500}
@@ -299,6 +304,7 @@ body[data-role="editor"] .dashbtn,body[data-role="admin"] .dashbtn{display:inlin
 <div id="authBar">
   <button id="authToggle"><span id="authWho"></span> <span class="caret">&#9662;</span></button>
   <div id="authMenu">
+    <div class="authmenu-head"><div id="amName"></div><div id="amEmail" class="am-sub"></div></div>
     <button id="delBtn" class="needEdit" style="display:none">&#128465; Deleted keywords</button>
     <button id="authUsersBtn" style="display:none">&#128100; User access</button>
     <button id="authLogout">Logout</button>
@@ -525,7 +531,7 @@ const SB_URL='https://jmsjgaocqwkffsyjekcx.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc2pnYW9jcXdrZmZzeWpla2N4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0Nzg3MDEsImV4cCI6MjA5NzA1NDcwMX0.g7UXaW648xzecbgLQVa5i_7IZaorfcaDzz2-2Rp5euY';
 const sb = (window.supabase&&window.supabase.createClient)?window.supabase.createClient(SB_URL,SB_KEY):null;
 const SHARED = !!sb;
-let USER=null, ROLE='viewer';
+let USER=null, ROLE='viewer', MYNAME='';
 const PUBLIC=false;  // login required to view the dashboard
 function canEdit(){return SHARED ? (ROLE==='admin'||ROLE==='editor') : true;}
 D.kw.forEach((k,i)=>k._i=i);
@@ -1452,7 +1458,12 @@ function hideGate(){const g=document.getElementById('authGate');if(g)g.style.dis
 function authShow(box){['authLoginBox','authSignupBox','authPendingBox','authResetBox'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=(id===box)?'block':'none';});}
 function applyRole(){
   document.body.dataset.role=ROLE;
-  const who=document.getElementById('authWho'); if(who)who.innerHTML=(USER?USER.email:'')+' <span class="rolebadge">'+ROLE+'</span>';
+  const email=USER?USER.email:'';
+  let nm=(MYNAME||'').trim(); if(!nm&&email){nm=email.split('@')[0].replace(/[._-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());}
+  const ini=(nm||email||'?').trim().charAt(0).toUpperCase();
+  const who=document.getElementById('authWho'); if(who)who.innerHTML='<span class="uava">'+escH(ini)+'</span><span class="uname">'+escH(nm||email)+'</span>';
+  const amN=document.getElementById('amName'); if(amN)amN.innerHTML=escH(nm||email)+' <span class="rolebadge">'+escH(ROLE)+'</span>';
+  const amE=document.getElementById('amEmail'); if(amE)amE.textContent=email;
   const ub=document.getElementById('authUsersBtn'); if(ub)ub.style.display=(ROLE==='admin')?'block':'none';
   const dbn=document.getElementById('delBtn'); if(dbn)dbn.style.display='block';  // deleted list visible to all; Restore is gated to admins inside
 }
@@ -1460,8 +1471,8 @@ let pollStarted=false;
 async function afterLogin(user){
   USER=user;
   let st='none', prof=null;
-  try{const {data}=await sb.from('profiles').select('role,status').eq('id',user.id).maybeSingle();prof=data;}catch(e){}
-  if(prof){ROLE=prof.role||'viewer';st=prof.status||'approved';}else{ROLE='viewer';st='none';}
+  try{const {data}=await sb.from('profiles').select('role,status,name').eq('id',user.id).maybeSingle();prof=data;}catch(e){}
+  if(prof){ROLE=prof.role||'viewer';st=prof.status||'approved';MYNAME=prof.name||'';}else{ROLE='viewer';st='none';MYNAME='';}
   if(st!=='approved'){ document.body.dataset.role='viewer'; const ab=document.getElementById('authBar'); if(ab)ab.style.display='none';
     const msg=document.getElementById('authPendingMsg'); if(msg)msg.textContent=(st==='pending')?"Your account is awaiting admin approval. You'll be able to sign in once an admin approves you.":'Your account is not authorized. Please contact an admin.';
     showGate(); authShow('authPendingBox'); return; }
