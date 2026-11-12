@@ -80,7 +80,7 @@ footer{text-align:center;color:var(--gray);font-size:11.5px;margin:18px 0}
 .authbtns{display:flex;gap:10px;margin-top:6px}
 .authbtns button{flex:1;padding:10px;border-radius:8px;border:none;cursor:pointer;font-weight:700;font-size:13.5px}
 .autherr{color:var(--red);font-size:12.5px;min-height:16px;margin-bottom:4px}
-#authBar{position:fixed;top:12px;right:16px;z-index:300;display:none}
+#authBar{position:relative;margin-left:auto;z-index:300;display:none}
 #authToggle{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid #e2e7ef;border-radius:22px;padding:7px 14px;cursor:pointer;font-size:12.5px;font-weight:600;color:#1c2533;box-shadow:0 3px 12px rgba(20,40,80,.16)}
 #authToggle .caret{color:var(--gray);font-size:10px}
 .uava{width:26px;height:26px;border-radius:50%;background:var(--brand);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex:0 0 auto;text-transform:uppercase;box-shadow:0 1px 4px rgba(20,40,80,.18)}
@@ -88,6 +88,8 @@ footer{text-align:center;color:var(--gray);font-size:11.5px;margin:18px 0}
 .authmenu-head{padding:4px 12px 10px;border-bottom:1px solid #eef1f6;margin-bottom:4px}
 #amName{font-weight:800;font-size:13px;color:#1c2533;display:flex;align-items:center;gap:7px}
 .authmenu-head .am-sub{font-size:11px;color:var(--gray);margin-top:3px;word-break:break-all}
+.authmenu-sep{height:1px;background:#eef1f6;margin:5px 6px}
+#authMenu .am-accent{color:var(--brand);font-weight:700}
 #authMenu{position:absolute;top:46px;right:0;background:#fff;border:1px solid #e2e7ef;border-radius:12px;box-shadow:0 12px 34px rgba(20,40,80,.2);min-width:200px;padding:6px;display:none}
 #authMenu.open{display:block}
 #authMenu button{display:block;width:100%;text-align:left;border:none;background:none;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:13px;color:#1c2533;font-weight:500}
@@ -301,15 +303,6 @@ body[data-role="editor"] .dashbtn,body[data-role="admin"] .dashbtn{display:inlin
     <div class="authbtns"><button id="authSetPass" class="bsave">Update password</button></div>
   </div>
 </div></div>
-<div id="authBar">
-  <button id="authToggle"><span id="authWho"></span> <span class="caret">&#9662;</span></button>
-  <div id="authMenu">
-    <div class="authmenu-head"><div id="amName"></div><div id="amEmail" class="am-sub"></div></div>
-    <button id="delBtn" class="needEdit" style="display:none">&#128465; Deleted keywords</button>
-    <button id="authUsersBtn" style="display:none">&#128100; User access</button>
-    <button id="authLogout">Logout</button>
-  </div>
-</div>
 <div id="editModal"><div class="umcard" style="width:620px">
   <div class="umhead"><b id="editTitle"></b> <button id="editClose">&times;</button></div>
   <div id="editMeta" class="umdesc"></div>
@@ -339,8 +332,18 @@ body[data-role="editor"] .dashbtn,body[data-role="admin"] .dashbtn{display:inlin
       <h1>EMR Rank Tracker</h1>
       <div class="sub">Keyword Google-ranking performance &mdash; by owner &amp; report type</div>
     </div>
-    <a class="dashbtn" href="admin.html" title="Open the admin dashboard (manage keywords, uploads, users)">&#9881; Dashboard</a>
-    <button type="button" class="verstoggle" id="designToggle" title="Switch view: EMR &rarr; SEMrush &rarr; Classic">&#127912; <span id="designLabel">EMR</span> &#8635;</button>
+    <div id="authBar">
+      <button id="authToggle"><span id="authWho"></span> <span class="caret">&#9662;</span></button>
+      <div id="authMenu">
+        <div class="authmenu-head"><div id="amName"></div><div id="amEmail" class="am-sub"></div></div>
+        <button id="dashMenuBtn" class="am-accent" style="display:none">&#9881; Dashboard</button>
+        <button id="themeMenuBtn">&#127912; Theme: <span id="designLabel">EMR</span> &#8635;</button>
+        <div class="authmenu-sep"></div>
+        <button id="delBtn" class="needEdit" style="display:none">&#128465; Deleted keywords</button>
+        <button id="authUsersBtn" style="display:none">&#128100; User access</button>
+        <button id="authLogout">Logout</button>
+      </div>
+    </div>
   </div>
 </header>
 
@@ -996,7 +999,7 @@ function rowHTML(k){
   const enqc=`<td class="num cEnq">${ev>0?ev:'<span class="muted">0</span>'}</td>`;
   const dcells=k.r.map((v,i)=>cellRank(v,i===0?'c4':'')).join('');
   const cmt=hasComment(k);
-  const kwc=`<div class="kwcell"><span class="kwtext">${escH(dispName(k))}</span><span class="kwicons"><button class="iconbtn cmtbtn ${cmt?'active':''}" data-i="${k._i}" title="${cmt?'View / edit comment':'Add comment'}">&#128172;</button><button class="iconbtn editvalbtn needEdit" data-i="${k._i}" title="Edit keyword data">&#9998;</button><button class="iconbtn delbtn needEdit" data-i="${k._i}" title="Delete keyword">&#128465;</button></span></div>`;
+  const kwc=`<div class="kwcell"><span class="kwtext">${escH(dispName(k))}</span><span class="kwicons"><button class="iconbtn cmtbtn ${cmt?'active':''}" data-i="${k._i}" title="${cmt?'View / edit comment':'Add comment'}">&#128172;</button></span></div>`;
   return `<tr class="${cmt?'has-comment':''}"><td class="cID">${escH(k.rid||'')}</td><td class="c0">${kwc}</td><td class="cRT" title="${escH(k.rtype||'')}">${escH(k.rtype||'')}</td><td class="c1" title="${escH(k.grp||'')}">${escH(k.grp||'')}</td>${srch}${url}${enqc}${dcells}`+chgCell(k)+'</tr>';
 }
 function appendRows(n){
@@ -1464,6 +1467,7 @@ function applyRole(){
   const who=document.getElementById('authWho'); if(who)who.innerHTML='<span class="uava">'+escH(ini)+'</span><span class="uname">'+escH(nm||email)+'</span>';
   const amN=document.getElementById('amName'); if(amN)amN.innerHTML=escH(nm||email)+' <span class="rolebadge">'+escH(ROLE)+'</span>';
   const amE=document.getElementById('amEmail'); if(amE)amE.textContent=email;
+  const dm=document.getElementById('dashMenuBtn'); if(dm)dm.style.display=(ROLE==='editor'||ROLE==='admin')?'block':'none';
   const ub=document.getElementById('authUsersBtn'); if(ub)ub.style.display=(ROLE==='admin')?'block':'none';
   const dbn=document.getElementById('delBtn'); if(dbn)dbn.style.display='block';  // deleted list visible to all; Restore is gated to admins inside
 }
@@ -1522,6 +1526,7 @@ function wireAuthUI(){
     if(!error)setTimeout(()=>location.reload(),1200);};
   document.getElementById('authLogout').onclick=async()=>{if(sb)await sb.auth.signOut();};
   document.getElementById('authUsersBtn').onclick=()=>{document.getElementById('authMenu').classList.remove('open');openUsers();};
+  {const dmb=document.getElementById('dashMenuBtn'); if(dmb)dmb.onclick=()=>{location.href='admin.html';};}
   document.getElementById('umClose').onclick=()=>document.getElementById('usersModal').style.display='none';
   const at=document.getElementById('authToggle'),am=document.getElementById('authMenu');
   if(at)at.onclick=ev=>{ev.stopPropagation();am.classList.toggle('open');};
@@ -1574,7 +1579,7 @@ document.getElementById('toBottom').onclick=()=>window.scrollTo({top:document.bo
   function apply(d){ if(ORDER.indexOf(d)<0)d='emr'; document.documentElement.setAttribute('data-design',d); var l=document.getElementById('designLabel'); if(l)l.textContent=LABELS[d]; try{localStorage.setItem('emr_design',d);}catch(e){} }
   var pref='emr'; try{pref=localStorage.getItem('emr_design')||'emr';}catch(e){}
   apply(pref);
-  var btn=document.getElementById('designToggle');
+  var btn=document.getElementById('themeMenuBtn');
   if(btn)btn.addEventListener('click',function(){
     var i=ORDER.indexOf(document.documentElement.getAttribute('data-design')); if(i<0)i=0;
     apply(ORDER[(i+1)%ORDER.length]);
