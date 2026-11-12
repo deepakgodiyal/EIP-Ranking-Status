@@ -55,6 +55,10 @@ tr:hover td{background:#f7f9fc}
 .act{display:flex;gap:6px}
 .iconbtn{border:1px solid var(--line);background:#fff;border-radius:7px;padding:5px 9px;cursor:pointer;font-size:12px}
 .iconbtn.del{color:var(--red);border-color:#f3d2d2}
+.actfilters{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:4px 0 14px}
+.actfilters input,.actfilters select{padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;font-family:inherit;background:#fff;color:var(--navy)}
+.actfilters label{font-size:12px;color:var(--gray);display:inline-flex;align-items:center;gap:5px}
+#actCount{margin-left:auto;font-size:12px}
 .pager{display:flex;gap:10px;align-items:center;margin-top:12px;font-size:12.5px;color:var(--gray)}
 .pager button{border:1px solid var(--line);background:#fff;border-radius:7px;padding:5px 12px;cursor:pointer}
 .modal{position:fixed;inset:0;background:rgba(16,42,76,.5);z-index:100;display:none;align-items:center;justify-content:center}
@@ -235,7 +239,16 @@ th{color:var(--gray)}
     <div class="sec" id="sec-activity">
       <div class="card">
         <h2>Activity log</h2>
-        <div class="desc">Who changed what, and when (latest first).</div>
+        <div class="desc">Who changed what, and when (latest first). Every edit, delete, upload and user change is recorded here.</div>
+        <div class="actfilters">
+          <input type="text" id="actSearch" placeholder="Search keyword / detail…" style="min-width:200px">
+          <select id="actWho"><option value="">All users</option></select>
+          <select id="actAction"><option value="">All actions</option></select>
+          <label>From <input type="date" id="actFrom"></label>
+          <label>To <input type="date" id="actTo"></label>
+          <button class="btn sm" id="actClear" style="background:#eef1f6;color:var(--navy)">Clear</button>
+          <span id="actCount" class="muted"></span>
+        </div>
         <table id="actTable"></table>
       </div>
     </div>
@@ -525,12 +538,37 @@ async function loadUsers(){
 }
 
 // ---------- Activity ----------
+let ACT=[];
 async function loadActivity(){
   const t=document.getElementById('actTable'); t.innerHTML='<tr><td>Loading...</td></tr>';
-  const {data,error}=await sb.from('activity').select('who,action,detail,at').order('at',{ascending:false}).limit(300);
+  const {data,error}=await sb.from('activity').select('who,action,detail,at').order('at',{ascending:false}).limit(3000);
   if(error){t.innerHTML='<tr><td>'+esc(error.message)+'</td></tr>';return;}
-  if(!data||!data.length){t.innerHTML='<tr><td class="muted">No activity yet.</td></tr>';return;}
-  t.innerHTML='<tr><th>When</th><th>Who</th><th>Action</th><th>Detail</th></tr>'+data.map(a=>`<tr><td class="muted">${new Date(a.at).toLocaleString()}</td><td>${esc(a.who)}</td><td>${esc(a.action)}</td><td>${esc(a.detail)}</td></tr>`).join('');
+  ACT=data||[];
+  const who=document.getElementById('actWho'), act=document.getElementById('actAction');
+  if(who){const us=[...new Set(ACT.map(a=>a.who).filter(Boolean))].sort();who.innerHTML='<option value="">All users</option>'+us.map(u=>`<option value="${esc(u)}">${esc(u)}</option>`).join('');}
+  if(act){const as=[...new Set(ACT.map(a=>a.action).filter(Boolean))].sort();act.innerHTML='<option value="">All actions</option>'+as.map(u=>`<option value="${esc(u)}">${esc(u)}</option>`).join('');}
+  ['actSearch','actWho','actAction','actFrom','actTo'].forEach(id=>{const el=document.getElementById(id);if(el){el.oninput=renderActivity;el.onchange=renderActivity;}});
+  const clr=document.getElementById('actClear'); if(clr)clr.onclick=()=>{['actSearch','actWho','actAction','actFrom','actTo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderActivity();};
+  renderActivity();
+}
+function renderActivity(){
+  const t=document.getElementById('actTable'); if(!t)return;
+  const g=id=>{const el=document.getElementById(id);return el?el.value:'';};
+  const q=(g('actSearch')||'').toLowerCase().trim(), fw=g('actWho'), fa=g('actAction'), ff=g('actFrom'), ft=g('actTo');
+  const fromT=ff?new Date(ff+'T00:00:00').getTime():null, toT=ft?new Date(ft+'T23:59:59.999').getTime():null;
+  const rows=ACT.filter(a=>{
+    if(fw&&a.who!==fw)return false;
+    if(fa&&a.action!==fa)return false;
+    const ts=new Date(a.at).getTime();
+    if(fromT!=null&&ts<fromT)return false;
+    if(toT!=null&&ts>toT)return false;
+    if(q){const hay=((a.who||'')+' '+(a.action||'')+' '+(a.detail||'')).toLowerCase();if(hay.indexOf(q)<0)return false;}
+    return true;
+  });
+  const cnt=document.getElementById('actCount'); if(cnt)cnt.textContent=rows.length.toLocaleString()+' of '+ACT.length.toLocaleString();
+  if(!ACT.length){t.innerHTML='<tr><td class="muted">No activity yet.</td></tr>';return;}
+  if(!rows.length){t.innerHTML='<tr><th>When</th><th>Who</th><th>Action</th><th>Detail</th></tr><tr><td colspan="4" class="muted">No matching activity.</td></tr>';return;}
+  t.innerHTML='<tr><th>When</th><th>Who</th><th>Action</th><th>Detail</th></tr>'+rows.map(a=>`<tr><td class="muted">${new Date(a.at).toLocaleString()}</td><td>${esc(a.who)}</td><td>${esc(a.action)}</td><td>${esc(a.detail)}</td></tr>`).join('');
 }
 
 // ---------- Settings ----------
