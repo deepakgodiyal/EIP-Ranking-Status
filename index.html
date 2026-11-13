@@ -1167,6 +1167,7 @@ document.getElementById('cpSave').onclick=async()=>{
   const {data,error}=await sb.from('comment_log').insert(row).select().single(); sv.disabled=false;
   if(error){alert('Comment failed: '+(error.message||'no access'));return;}
   (CLOG[cpKw]=CLOG[cpKw]||[]).push(data||Object.assign({created_at:new Date().toISOString()},row));
+  logAct('comment','keyword: '+cpKw+' — "'+(v.length>200?v.slice(0,200)+'…':v)+'"');
   document.getElementById('cpText').value=''; renderThread(cpKw); renderKw(false);
 };
 document.addEventListener('click',e=>{if(!e.target.closest('.cmt-pop')&&!e.target.closest('.cmtbtn'))closeCmt();});
